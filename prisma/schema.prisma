@@ -1,8 +1,11 @@
 // Waiting — Energy Project Tracker
 //
-// v1 uses SQLite for zero-config local dev (see .env.example for the
-// production-Postgres caveat: Vercel's serverless filesystem is read-only,
-// so submissions/admin approvals will not persist there on SQLite).
+// Uses a hosted Postgres instance (Prisma Postgres, connected via the
+// Vercel Storage integration) for both local dev and production — v1
+// originally shipped with local SQLite, but Vercel's serverless filesystem
+// can't reliably serve a bundled SQLite file at runtime (see git history /
+// README), so this project standardized on one shared Postgres instead of
+// running two different datasource providers in dev vs. prod.
 //
 // Cause categories and their paired reform levers are NOT modeled as a DB
 // table on purpose — they are a fixed, small, code-reviewed set that lives
@@ -15,7 +18,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

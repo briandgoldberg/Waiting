@@ -16,15 +16,17 @@ in-app `/reform/*` pages.
 
 ```bash
 npm install
-cp .env.example .env      # fill in ADMIN_PASSWORD / ADMIN_SESSION_SECRET at minimum
-npx prisma migrate deploy # applies the committed schema to a fresh prisma/dev.db
+cp .env.example .env      # set DATABASE_URL to your own Postgres instance, plus ADMIN_PASSWORD / ADMIN_SESSION_SECRET
+npx prisma migrate deploy # applies the committed migrations to your database
 npx tsx prisma/seed.ts    # loads the v1 curated seed set (see below)
 npm run dev
 ```
 
-The repo ships with `prisma/dev.db` already migrated and seeded, so
-`npm install && npm run dev` alone is enough to see real data immediately —
-the steps above are for resetting or rebuilding it from scratch.
+Needs a real Postgres connection string in `DATABASE_URL` — there's no
+bundled local database file. The deployed app and local dev both point at
+the same hosted Postgres instance for this project (see "Architecture"
+below for why); for your own fork, any Postgres works (Neon, Supabase,
+Vercel/Prisma Postgres, RDS, local `postgres` via Docker, etc.).
 
 Visit `/admin` and sign in with `ADMIN_USERNAME` / `ADMIN_PASSWORD` from
 `.env` to review submissions (see "User submissions" below).
@@ -111,18 +113,22 @@ per-data-source version of this list.
    LNG projects show "not estimated" rather than a number built on
    assumptions this project couldn't defend as well — see
    `src/lib/calc/costOfDelay.ts` and `/methodology`.
-8. **SQLite + serverless deployment.** v1 uses SQLite for zero-config local
-   dev. Vercel's serverless filesystem is read-only outside `/tmp`, so
-   submissions and admin approvals will not persist if this is deployed
-   there as-is — swap `DATABASE_URL` to a hosted Postgres instance and
-   change the Prisma `provider` before deploying anywhere with
-   ephemeral/read-only disk. See `.env.example`.
+8. **SQLite + serverless deployment (resolved).** v1 originally shipped
+   with a committed SQLite file for zero-config local dev. On the first
+   Vercel deploy this broke completely: Next.js's serverless file tracer
+   doesn't know to bundle a file that's only referenced via a connection
+   string (not `import`ed), so `prisma/dev.db` was silently missing from
+   the deployed function and every DB read 500'd — a strictly worse
+   failure mode than the "writes won't persist" issue originally flagged
+   here. Fixed by moving to a hosted Postgres instance (Prisma Postgres via
+   Vercel's Storage integration) used by both local dev and production.
 
 ## Architecture
 
 - **Next.js (App Router) + TypeScript + Tailwind v4**, single app.
-- **Prisma + SQLite** (`prisma/schema.prisma`) — swappable to Postgres, see
-  open question #8.
+- **Prisma + Postgres** (`prisma/schema.prisma`) — one hosted instance used
+  for both local dev and production; see open question #8 for why this
+  project moved off SQLite.
 - **MapLibre GL JS** for the map — a free CARTO Voyager vector basemap (no
   API token required), custom circle-layer markers sized by capacity and
   colored by primary cause category, with native GeoJSON clustering.
