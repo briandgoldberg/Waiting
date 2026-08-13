@@ -1,0 +1,162 @@
+// Waiting — Energy Project Tracker
+//
+// v1 uses SQLite for zero-config local dev (see .env.example for the
+// production-Postgres caveat: Vercel's serverless filesystem is read-only,
+// so submissions/admin approvals will not persist there on SQLite).
+//
+// Cause categories and their paired reform levers are NOT modeled as a DB
+// table on purpose — they are a fixed, small, code-reviewed set that lives
+// in src/lib/data/causeCategories.ts as the single source of truth. Projects
+// and submissions reference a cause by its slug (string), validated in app
+// code against that module rather than a DB foreign key.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id     String @id @default(cuid())
+  name   String
+  slug   String @unique
+
+  // generation | transmission | storage | lng | pipeline
+  projectType String
+
+  // solar | wind_onshore | wind_offshore | storage | gas | nuclear | hydro
+  // | lng | pipeline | transmission | geothermal | other
+  fuelType String
+
+  lat    Float?
+  lon    Float?
+  state  String?
+  county String?
+
+  // "MW" for most generation/storage/transmission; LNG uses "MTPA"; some
+  // pipeline entries store a length/diameter descriptor instead of a single
+  // throughput number when public reporting didn't give one (see dataQualityNote).
+  capacityValue Float?
+  capacityUnit  String?
+
+  applicationFiledDate DateTime?
+  // "exact" | "approximate" — many public dates are year-level or
+  // milestone-level precision rather than a specific day; be honest about it.
+  dateConfidence String @default("exact")
+
+  currentStatus String
+
+  // interconnection_study | environmental_review | agency_permitting |
+  // local_review | litigation | approved_awaiting_construction |
+  // under_construction | cancelled | completed
+  currentStage String
+
+  causeDetail String
+
+  // True for entries that represent a regional/aggregate statistic
+  // (e.g. "PJM Interconnection Queue") rather than one physical project.
+  // Always shown with a clear label — never mixed silently into per-project
+  // counts that imply "N individual projects."
+  isAggregateExample Boolean @default(false)
+
+  estimatedMwDelayed Float?
+
+  // verified | user_submitted_pending | user_submitted_verified
+  verificationStatus String @default("verified")
+
+  // Free-text caveat surfaced in the UI, e.g. "Capacity figure is the
+  // developer-stated design capacity; not independently verified."
+  dataQualityNote String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  causes     ProjectCause[]
+  sources    ProjectSource[]
+  milestones Milestone[]
+
+  @@index([projectType])
+  @@index([fuelType])
+  @@index([currentStage])
+  @@index([verificationStatus])
+}
+
+model ProjectCause {
+  id        Int    @id @default(autoincrement())
+  projectId String
+  // slug matching src/lib/data/causeCategories.ts — see note above
+  causeSlug String
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, causeSlug])
+  @@index([causeSlug])
+}
+
+model ProjectSource {
+  id        Int    @id @default(autoincrement())
+  projectId String
+  label     String
+  url       String
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Milestone {
+  id             Int      @id @default(autoincrement())
+  projectId      String
+  date           DateTime
+  dateConfidence String   @default("exact")
+  stage          String
+  description    String
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+// User-submitted projects. Never shown publicly until an admin approves them
+// (status flips to "approved" and a real Project row is created) — see
+// src/app/admin and src/app/api/admin/submissions.
+model Submission {
+  id     String @id @default(cuid())
+  name   String
+
+  projectType String
+  fuelType    String
+
+  lat    Float?
+  lon    Float?
+  state  String?
+  county String?
+
+  capacityValue Float?
+  capacityUnit  String?
+
+  applicationFiledDate DateTime?
+
+  // Comma-separated cause slugs chosen by the submitter — kept as a plain
+  // string here (not normalized into ProjectCause rows) until approved.
+  causeSlugs  String
+  causeDetail String
+
+  // Required per spec: at least one supporting source link. Stored as
+  // newline-separated raw text; split/validated in app code.
+  sourceUrls String
+
+  submitterName  String?
+  submitterEmail String?
+
+  // pending | approved | rejected
+  status       String  @default("pending")
+  reviewerNote String?
+
+  createdAt  DateTime  @default(now())
+  reviewedAt DateTime?
+
+  // Set once approved and copied into a Project row, so we can link back.
+  publishedProjectId String?
+}

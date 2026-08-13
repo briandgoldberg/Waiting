@@ -1,0 +1,117 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
+import type { ProjectDTO } from "@/lib/types";
+import { DEFAULT_FILTERS, buildChips, hasActiveFilters, matchesFilters, type FilterState } from "@/lib/filters";
+import { computeAggregateStats } from "@/lib/stats";
+import { StatsHeader } from "@/components/StatsHeader";
+import { FilterPanel } from "@/components/FilterPanel";
+import { ProjectList } from "@/components/ProjectList";
+
+const Map = dynamic(() => import("@/components/Map").then((m) => m.Map), {
+  ssr: false,
+  loading: () => (
+    <div className="h-full w-full rounded-lg border border-[var(--border)] bg-[var(--panel)] flex items-center justify-center text-sm text-[var(--muted)]">
+      Loading map…
+    </div>
+  ),
+});
+
+export function Explorer({ projects }: { projects: ProjectDTO[] }) {
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [view, setView] = useState<"map" | "list">("map");
+  const [panelOpen, setPanelOpen] = useState(true);
+
+  const availableStates = useMemo(
+    () => Array.from(new Set(projects.map((p) => p.state).filter((s): s is string => !!s))).sort(),
+    [projects],
+  );
+
+  const filtered = useMemo(
+    () => projects.filter((p) => matchesFilters(p, filters)),
+    [projects, filters],
+  );
+
+  const stats = useMemo(() => computeAggregateStats(filtered), [filtered]);
+  const chips = useMemo(() => buildChips(filters), [filters]);
+
+  return (
+    <div className="mx-auto max-w-7xl w-full px-4 sm:px-6 py-5 flex flex-col gap-4 flex-1">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">
+          Every fuel type. The same bottlenecks.
+        </h1>
+        <p className="text-sm text-[var(--muted)] mt-1 max-w-3xl">
+          Solar, wind, storage, gas, nuclear, hydro, LNG, pipelines, and transmission — tracked
+          side by side, with every delay mapped to one of seven named causes and the specific
+          reform proposal that targets it.
+        </p>
+      </div>
+
+      <StatsHeader stats={stats} />
+
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-1 rounded-lg border border-[var(--border)] p-1 bg-[var(--panel)]">
+          <button
+            onClick={() => setView("map")}
+            className={`px-3 py-1.5 text-sm rounded-md ${view === "map" ? "bg-[var(--accent)] text-white" : ""}`}
+          >
+            Map
+          </button>
+          <button
+            onClick={() => setView("list")}
+            className={`px-3 py-1.5 text-sm rounded-md ${view === "list" ? "bg-[var(--accent)] text-white" : ""}`}
+          >
+            List
+          </button>
+        </div>
+        <button
+          onClick={() => setPanelOpen(!panelOpen)}
+          className="lg:hidden text-sm px-3 py-1.5 rounded-md border border-[var(--border)]"
+        >
+          {panelOpen ? "Hide filters" : "Show filters"}
+        </button>
+      </div>
+
+      {chips.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {chips.map((chip) => (
+            <button
+              key={chip.key}
+              onClick={() => setFilters(chip.onRemove(filters))}
+              className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--panel)] px-2.5 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/10"
+            >
+              {chip.label} <span aria-hidden>×</span>
+            </button>
+          ))}
+          {hasActiveFilters(filters) && (
+            <button
+              onClick={() => setFilters(DEFAULT_FILTERS)}
+              className="text-xs underline text-[var(--muted)] ml-1"
+            >
+              Clear all
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4 flex-1 min-h-[560px]">
+        {panelOpen && (
+          <div className="lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+            <FilterPanel filters={filters} onChange={setFilters} availableStates={availableStates} />
+          </div>
+        )}
+        <div className="h-[560px] lg:h-[calc(100vh-260px)] lg:min-h-[560px]">
+          {view === "map" ? (
+            <Map projects={filtered} />
+          ) : (
+            <div className="h-full overflow-y-auto">
+              <ProjectList projects={filtered} />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
