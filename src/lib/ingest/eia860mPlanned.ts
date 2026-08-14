@@ -1,0 +1,256 @@
+// EIA-860M "Planned" generators — the backbone list of proposed U.S.
+// generation/storage projects nationally.
+//
+// SUPERSEDES eia.ts. That module queried the EIA API v2
+// `electricity/operating-generator-capacity` route, which — confirmed live
+// on 2026-08-14 by querying its `/facet/status/` endpoint — only has four
+// status values: OP (Operating), OS/OA (out of service), SB (standby). None
+// of those are "planned." There is no API v2 route anywhere (checked every
+// route under every top-level namespace, not just `electricity`) that
+// exposes planned/proposed generators. EIA only publishes that data as the
+// "Planned" tab of the monthly EIA-860M Excel workbook — this module reads
+// that file instead, using the same download-and-parse pattern as
+// lbnlQueuedUp.ts. eia.ts is left in place for its EIA-860M-status-code
+// research value but should not be run — it will always return 0 rows for
+// "proposed" and either nothing or already-built plants for anything else.
+//
+// GETTING THE FILE: https://www.eia.gov/electricity/data/eia860m/ lists a
+// full year of month names as links, but most of them 200-OK to a small
+// (~15KB) `text/html` "not found yet" page, not the real file — only the
+// most recently actually-released month returns the real
+// `.xlsx`/`spreadsheetml` file (confirmed 2026-08-14: only
+// `xls/june_generator2026.xlsx` was real; every "newer"-sounding month name
+// listed on the page was the soft-404 page). Check Content-Type, not just
+// HTTP status, when scripting the download. There is roughly a 2-month
+// publication lag.
+//
+// CAPACITY FLOOR: the Planned tab is generator-level, not project-level,
+// and includes everything from multi-hundred-MW power plants down to
+// ~1 MW single-building rooftop solar arrays (e.g. individual Prologis
+// warehouse rooftops, confirmed in the 2026-06 file). Importing all ~2,300
+// rows unfiltered would flood the map with distributed generation that
+// doesn't match this site's "energy project" framing and would dilute the
+// individually-cited seed projects already in the database. MIN_CAPACITY_MW
+// below is a deliberate, documented judgment call, not a technical limit —
+// raise or lower it and re-run any time; upserts are idempotent by
+// plant+generator ID either way.
+export const MIN_CAPACITY_MW = 250;
+
+import { readFileSync } from "node:fs";
+import * as XLSX from "xlsx";
+import type { CauseSlug } from "@/lib/data/causeCategories";
+import type { FuelType, ProjectStage } from "@/lib/data/taxonomies";
+import { resolveMatchKey } from "@/lib/ingest/manualOverrides";
+import { upsertNormalizedProject, type NormalizedProject } from "@/lib/ingest/common";
+
+const SHEET_NAME_CANDIDATES = ["Planned"];
+
+const FIELD_CANDIDATES: Record<string, string[]> = {
+  entityId: ["Entity ID"],
+  plantId: ["Plant ID"],
+  plantName: ["Plant Name"],
+  state: ["Plant State", "State"],
+  county: ["County"],
+  generatorId: ["Generator ID"],
+  nameplateCapacityMw: ["Nameplate Capacity (MW)"],
+  technology: ["Technology"],
+  energySourceCode: ["Energy Source Code"],
+  plannedOperationMonth: ["Planned Operation Month"],
+  plannedOperationYear: ["Planned Operation Year"],
+  status: ["Status"],
+  latitude: ["Latitude"],
+  longitude: ["Longitude"],
+};
+
+type FieldMap = Record<keyof typeof FIELD_CANDIDATES, string | undefined>;
+
+function resolveFieldMap(headerRow: string[]): FieldMap {
+  const normalized = headerRow.map((h) => h?.toString().trim());
+  const map = {} as FieldMap;
+  const missing: string[] = [];
+
+  for (const [field, candidates] of Object.entries(FIELD_CANDIDATES)) {
+    const idx = normalized.findIndex((h) => candidates.includes(h));
+    if (idx === -1) {
+      missing.push(field);
+      continue;
+    }
+    map[field as keyof typeof FIELD_CANDIDATES] = headerRow[idx];
+  }
+
+  if (missing.length > 0) {
+    throw new Error(
+      `EIA-860M Planned-tab parser could not find columns for: ${missing.join(", ")}. ` +
+        `EIA has changed column names between editions before — open the downloaded workbook ` +
+        `and update FIELD_CANDIDATES in src/lib/ingest/eia860mPlanned.ts.`,
+    );
+  }
+
+  return map;
+}
+
+// Same fuel-type mapping as eia.ts (kept independent rather than shared —
+// see that module for the offshore-wind/storage reclassification note).
+const ENERGY_SOURCE_TO_FUEL_TYPE: Record<string, FuelType> = {
+  SUN: "solar",
+  WND: "wind_onshore",
+  NG: "gas",
+  NUC: "nuclear",
+  WAT: "hydro",
+  GEO: "geothermal",
+  MWH: "storage",
+  BAT: "storage",
+};
+
+function reclassifyFuelType(energySourceCode: string, technology: string): FuelType {
+  if (/offshore/i.test(technology)) return "wind_offshore";
+  if (/battery|storage/i.test(technology)) return "storage";
+  return ENERGY_SOURCE_TO_FUEL_TYPE[energySourceCode] ?? "other";
+}
+
+// Status cells look like "(P) Planned for installation, but regulatory
+// approvals not initiated" — pull the parenthesized code out.
+function extractStatusCode(status: string): string {
+  const m = /^\(([A-Z]+)\)/.exec(status ?? "");
+  return m ? m[1] : "";
+}
+
+function statusToStage(code: string): ProjectStage {
+  if (code === "U" || code === "V" || code === "TS") return "under_construction";
+  // "agency_permitting" is a rough default for pre-construction planned
+  // generators — this source alone can't tell us whether the real
+  // bottleneck is interconnection, NEPA, or something else. Cross-reference
+  // with the Permitting Dashboard / LBNL Queued Up (or a manual override)
+  // to refine, same caveat as eia.ts carried.
+  return "agency_permitting";
+}
+
+interface PlannedRow {
+  [column: string]: string | number | null;
+}
+
+export function parseWorkbook(filePath: string): PlannedRow[] {
+  const buf = readFileSync(filePath);
+  const workbook = XLSX.read(buf, { type: "buffer" });
+  const sheetName = workbook.SheetNames.find((n) =>
+    SHEET_NAME_CANDIDATES.some((c) => n.toLowerCase() === c.toLowerCase()),
+  );
+  if (!sheetName) {
+    throw new Error(
+      `Could not find a sheet among candidates [${SHEET_NAME_CANDIDATES.join(", ")}]. ` +
+        `Sheets in this workbook: ${workbook.SheetNames.join(", ")}`,
+    );
+  }
+  const sheet = workbook.Sheets[sheetName];
+  // EIA-860M's Planned tab has a two-row title/blank header before the real
+  // column-name row (row index 2, 0-based) — confirmed in the 2026-06 file.
+  const rows = XLSX.utils.sheet_to_json<PlannedRow>(sheet, { defval: null, raw: false, range: 2 });
+  return rows;
+}
+
+export function normalizeEiaPlannedRow(row: PlannedRow, fieldMap: FieldMap): NormalizedProject | null {
+  const get = (field: keyof typeof FIELD_CANDIDATES) => {
+    const col = fieldMap[field];
+    return col ? row[col] : undefined;
+  };
+
+  const statusCode = extractStatusCode(String(get("status") ?? ""));
+  // Drop the occasional stray already-operating row and anything with no
+  // recognized status at all, rather than mis-classifying it as "waiting."
+  if (!statusCode || statusCode === "OP") return null;
+
+  const plantId = String(get("plantId") ?? "");
+  const generatorId = String(get("generatorId") ?? "");
+  const matchKey = resolveMatchKey("eia", `${plantId}-${generatorId}`);
+  const plantName = String(get("plantName") ?? "Unnamed plant");
+  const fuelType = reclassifyFuelType(String(get("energySourceCode") ?? ""), String(get("technology") ?? ""));
+
+  const lat = get("latitude") ? Number(get("latitude")) : null;
+  const lon = get("longitude") ? Number(get("longitude")) : null;
+  const opMonth = get("plannedOperationMonth");
+  const opYear = get("plannedOperationYear");
+  const plannedOperation =
+    opMonth && opYear ? `${String(opMonth).trim()}/${String(opYear).trim()}` : opYear ? String(opYear) : "unknown";
+
+  const causeSlugs: CauseSlug[] = []; // see module header: this source alone doesn't tell us why
+
+  return {
+    matchKey,
+    name: `${plantName} (Unit ${generatorId || "?"})`,
+    projectType: fuelType === "storage" ? "storage" : "generation",
+    fuelType,
+    lat: Number.isFinite(lat) ? lat : null,
+    lon: Number.isFinite(lon) ? lon : null,
+    state: get("state") ? String(get("state")) : null,
+    county: get("county") ? String(get("county")) : null,
+    capacityValue: Number(get("nameplateCapacityMw") ?? NaN) || null,
+    capacityUnit: "MW",
+    applicationFiledDate: null, // EIA-860M publishes planned in-service date, not an application-filed date
+    dateConfidence: "approximate",
+    currentStatus: String(get("status") ?? ""),
+    currentStage: statusToStage(statusCode),
+    causeSlugs,
+    causeDetail:
+      "Imported from the EIA-860M \"Planned\" generator inventory. Cause category not yet determined — cross-reference with the Permitting Dashboard, LBNL Queued Up, or manual review before attributing this project's delay to a specific bottleneck.",
+    dataQualityNote: `No application-filed date is published by EIA-860M, so days/years waiting cannot be computed until one is added via manual override — only a planned operation date (${plannedOperation}) is available.`,
+    sources: [
+      {
+        label: "EIA-860M \"Planned\" generator inventory",
+        url: "https://www.eia.gov/electricity/data/eia860m/",
+      },
+    ],
+    externalIds: { eia: `${plantId}-${generatorId}` },
+  };
+}
+
+export async function ingestEia860mPlanned(filePath: string, minCapacityMw = MIN_CAPACITY_MW) {
+  const rows = parseWorkbook(filePath);
+  if (rows.length === 0) {
+    console.log("No rows found in Planned tab.");
+    return;
+  }
+  const headerRow = Object.keys(rows[0]);
+  const fieldMap = resolveFieldMap(headerRow);
+
+  let upserted = 0;
+  let skippedBelowFloor = 0;
+  let skippedNotWaiting = 0;
+
+  for (const row of rows) {
+    const capacity = Number(row[fieldMap.nameplateCapacityMw!] ?? NaN);
+    if (!Number.isFinite(capacity) || capacity < minCapacityMw) {
+      skippedBelowFloor += 1;
+      continue;
+    }
+    const normalized = normalizeEiaPlannedRow(row, fieldMap);
+    if (!normalized) {
+      skippedNotWaiting += 1;
+      continue;
+    }
+    await upsertNormalizedProject(normalized);
+    upserted += 1;
+  }
+
+  console.log(
+    `EIA-860M Planned ingestion complete: upserted ${upserted} projects ` +
+      `(skipped ${skippedBelowFloor} below the ${minCapacityMw} MW floor, ` +
+      `${skippedNotWaiting} already-operating/unrecognized-status rows).`,
+  );
+}
+
+if (require.main === module) {
+  const filePath = process.argv[2] ?? process.env.EIA_860M_XLSX_PATH;
+  if (!filePath) {
+    console.error(
+      "Usage: npx tsx src/lib/ingest/eia860mPlanned.ts <path-to-downloaded-workbook.xlsx>\n" +
+        "(or set EIA_860M_XLSX_PATH). Download the current workbook from " +
+        "https://www.eia.gov/electricity/data/eia860m/ first — check Content-Type, several " +
+        "listed month links soft-404 to an HTML page instead of the real file.",
+    );
+    process.exit(1);
+  }
+  ingestEia860mPlanned(filePath).catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
