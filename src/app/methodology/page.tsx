@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ASSUMED_WHOLESALE_PRICE_USD_PER_MWH, CAPACITY_FACTOR_BY_FUEL } from "@/lib/calc/costOfDelay";
+import { GRID_AVG_CO2_TONNES_PER_MWH, ZERO_CARBON_FUELS } from "@/lib/calc/co2Avoided";
 import { FUEL_TYPE_BY_VALUE } from "@/lib/data/taxonomies";
 
 export default function MethodologyPage() {
@@ -31,7 +32,7 @@ export default function MethodologyPage() {
       </section>
 
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">
-        <h2 className="text-lg font-semibold mb-2">Cost of delay</h2>
+        <h2 className="text-lg font-semibold mb-2">Estimated energy bill impact</h2>
         <p className="text-sm mb-3">
           For generation and storage projects with capacity measured in MW and a fuel type with a
           published typical capacity factor:
@@ -47,9 +48,12 @@ export default function MethodologyPage() {
         <p className="text-sm mt-3">
           This approximates the market value of the electricity a project would have generated
           and sold, had it been online for the delay period, at a single blended national
-          wholesale price. It is an order-of-magnitude proxy for &ldquo;value left on the
-          table,&rdquo; not a project-specific revenue forecast — real capacity factors, prices,
-          and curtailment vary a lot by location, season, and hour.
+          wholesale price — a proxy for the downward pressure on electricity costs this
+          generation would have provided (more supply generally puts downward pressure on
+          wholesale prices, which flow through to retail bills over time), not a literal
+          per-household bill-savings figure or a project-specific revenue forecast. Real capacity
+          factors, prices, curtailment, and pass-through to retail rates all vary a lot by
+          location, season, and hour.
         </p>
         <h3 className="text-sm font-semibold mt-4 mb-2">Capacity factors used</h3>
         <ul className="text-sm grid grid-cols-2 gap-1">
@@ -74,10 +78,50 @@ export default function MethodologyPage() {
       </section>
 
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">
+        <h2 className="text-lg font-semibold mb-2">CO2 avoided if online</h2>
+        <p className="text-sm mb-3">
+          For zero-direct-emission generation projects only (
+          {ZERO_CARBON_FUELS.map((f, i) => (
+            <span key={f}>
+              {i > 0 && ", "}
+              {FUEL_TYPE_BY_VALUE[f]?.label ?? f}
+            </span>
+          ))}
+          ) with capacity measured in MW:
+        </p>
+        <pre className="text-xs bg-black/5 dark:bg-white/10 rounded-md p-3 overflow-x-auto">
+{`estimated CO2 avoided
+  = capacity (MW) × typical capacity factor × 24 (hours/day) × days waiting
+    (same MWh-delayed formula as energy bill impact, above)
+  × U.S. national average grid CO2 rate (${GRID_AVG_CO2_TONNES_PER_MWH} metric tons/MWh)`}
+        </pre>
+        <p className="text-sm mt-3">
+          The emissions rate is EIA&rsquo;s reported 2023 U.S. average — about 0.81 lb CO2 per kWh
+          generated across the whole grid (
+          <a
+            href="https://www.eia.gov/tools/faqs/faq.php?id=74"
+            target="_blank"
+            rel="noreferrer"
+            className="underline"
+          >
+            eia.gov
+          </a>
+          ) — used as a stand-in for the generation this delayed project would have displaced. In
+          practice, the generation actually displaced on the margin (often gas peakers) tends to
+          be <em>more</em> carbon-intensive than the full-year average mix used here, so this
+          number is more likely an understatement of true avoided emissions than an
+          overstatement. Gas projects are deliberately excluded from this calculation even though
+          they have a published capacity factor — delaying a gas plant doesn&rsquo;t avoid
+          emissions. Storage is excluded because it shifts existing energy rather than generating
+          new energy, so it has no well-defined MWh-delayed figure here.
+        </p>
+      </section>
+
+      <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">
         <h2 className="text-lg font-semibold mb-2">Aggregate headline stats</h2>
         <p className="text-sm">
-          Total capacity, total project-years, and total cost of delay sum only over projects in
-          the <em>current filtered set</em> — they update live as you filter. Entries flagged{" "}
+          Total capacity, total CO2 avoided, and total energy bill impact sum only over projects
+          in the <em>current filtered set</em> — they update live as you filter. Entries flagged{" "}
           <code>isAggregateExample</code> (currently: the PJM regional interconnection-queue
           entry) are always excluded from these totals, since they represent a regional statistic
           rather than one physical project and would double-count against individual projects

@@ -13,8 +13,6 @@ export function computeAggregateStats(projects: ProjectDTO[]): AggregateStats {
     return sum + p.capacityValue;
   }, 0);
 
-  const totalProjectYears = realProjects.reduce((sum, p) => sum + (p.yearsWaiting ?? 0), 0);
-
   let totalCostOfDelayUsd = 0;
   let costOfDelayCoverageCount = 0;
   for (const p of realProjects) {
@@ -24,11 +22,21 @@ export function computeAggregateStats(projects: ProjectDTO[]): AggregateStats {
     }
   }
 
+  let totalTonnesCo2Avoided = 0;
+  let co2AvoidedCoverageCount = 0;
+  for (const p of realProjects) {
+    if (p.co2Avoided.applicable && p.co2Avoided.estimatedTonnesCo2Avoided != null) {
+      totalTonnesCo2Avoided += p.co2Avoided.estimatedTonnesCo2Avoided;
+      co2AvoidedCoverageCount += 1;
+    }
+  }
+
   return {
     totalProjects: realProjects.length,
     totalCapacityMw,
-    totalProjectYears,
     totalCostOfDelayUsd,
     costOfDelayCoverageCount,
+    totalTonnesCo2Avoided,
+    co2AvoidedCoverageCount,
   };
 }

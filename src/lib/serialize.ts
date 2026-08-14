@@ -1,5 +1,6 @@
 import type { Project, ProjectCause, ProjectSource, Milestone } from "@prisma/client";
 import { daysWaiting, yearsWaiting, estimateCostOfDelay } from "@/lib/calc/costOfDelay";
+import { estimateCo2Avoided } from "@/lib/calc/co2Avoided";
 import type { ProjectDTO } from "@/lib/types";
 import type { CauseSlug } from "@/lib/data/causeCategories";
 import type { FuelType, ProjectStage, ProjectType, VerificationStatus } from "@/lib/data/taxonomies";
@@ -14,6 +15,12 @@ export function serializeProject(p: ProjectWithRelations): ProjectDTO {
   const days = daysWaiting(p.applicationFiledDate);
   const years = yearsWaiting(p.applicationFiledDate);
   const cost = estimateCostOfDelay({
+    fuelType: p.fuelType,
+    capacityValue: p.capacityValue,
+    capacityUnit: p.capacityUnit,
+    daysWaiting: days,
+  });
+  const co2 = estimateCo2Avoided({
     fuelType: p.fuelType,
     capacityValue: p.capacityValue,
     capacityUnit: p.capacityUnit,
@@ -55,5 +62,6 @@ export function serializeProject(p: ProjectWithRelations): ProjectDTO {
     daysWaiting: days,
     yearsWaiting: years,
     costOfDelay: cost,
+    co2Avoided: co2,
   };
 }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { AggregateStats } from "@/lib/types";
 import { formatUsd } from "@/lib/calc/costOfDelay";
+import { formatTonnesCo2 } from "@/lib/calc/co2Avoided";
 
 export function StatsHeader({ stats }: { stats: AggregateStats }) {
   const items = [
@@ -12,11 +13,12 @@ export function StatsHeader({ stats }: { stats: AggregateStats }) {
       value: `${Math.round(stats.totalCapacityMw).toLocaleString("en-US")} MW`,
     },
     {
-      label: "Project-years lost",
-      value: stats.totalProjectYears.toLocaleString("en-US", { maximumFractionDigits: 0 }),
+      label: "CO2 avoided if online",
+      value: formatTonnesCo2(stats.totalTonnesCo2Avoided),
+      note: `${stats.co2AvoidedCoverageCount}/${stats.totalProjects} zero-carbon projects have an applicable estimate`,
     },
     {
-      label: "Est. cost of delay",
+      label: "Est. energy bill impact",
       value: formatUsd(stats.totalCostOfDelayUsd),
       note: `${stats.costOfDelayCoverageCount}/${stats.totalProjects} projects have an applicable estimate`,
     },
@@ -32,8 +34,8 @@ export function StatsHeader({ stats }: { stats: AggregateStats }) {
         </div>
       ))}
       <div className="col-span-2 sm:col-span-4 text-[11px] text-[var(--muted)]">
-        Stats update live as you filter below. Cost-of-delay is a documented estimate, not a
-        precise figure —{" "}
+        Stats update live as you filter below. CO2 avoided and energy bill impact are documented
+        estimates, not precise figures —{" "}
         <Link href="/methodology" className="underline">
           see methodology
         </Link>

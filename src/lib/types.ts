@@ -54,12 +54,20 @@ export interface ProjectDTO {
     estimatedUsd?: number;
     capacityFactor?: number;
   };
+  co2Avoided: {
+    applicable: boolean;
+    reason?: string;
+    estimatedMwhDelayed?: number;
+    estimatedTonnesCo2Avoided?: number;
+    capacityFactor?: number;
+  };
 }
 
 export interface AggregateStats {
   totalProjects: number;
   totalCapacityMw: number;
-  totalProjectYears: number;
   totalCostOfDelayUsd: number;
   costOfDelayCoverageCount: number; // how many of totalProjects have an applicable cost-of-delay estimate
+  totalTonnesCo2Avoided: number;
+  co2AvoidedCoverageCount: number; // how many of totalProjects have an applicable CO2-avoided estimate
 }
