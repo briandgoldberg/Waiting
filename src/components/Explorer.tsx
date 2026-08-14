@@ -37,6 +37,19 @@ export function Explorer({ projects }: { projects: ProjectDTO[] }) {
   const stats = useMemo(() => computeAggregateStats(filtered), [filtered]);
   const chips = useMemo(() => buildChips(filters), [filters]);
 
+  // One real project used to ground the stat tooltips in live numbers.
+  // Prefer a project where every stat has an applicable estimate so none of
+  // the four tooltips falls back to "not estimated"; degrade gracefully.
+  const exampleProject = useMemo(() => {
+    const real = filtered.filter((p) => !p.isAggregateExample);
+    return (
+      real.find((p) => p.costOfDelay.applicable && p.co2Avoided.applicable) ??
+      real.find((p) => p.costOfDelay.applicable) ??
+      real[0] ??
+      null
+    );
+  }, [filtered]);
+
   return (
     <div className="mx-auto max-w-7xl w-full px-4 sm:px-6 py-5 flex flex-col gap-4 flex-1">
       <div>
@@ -53,7 +66,7 @@ export function Explorer({ projects }: { projects: ProjectDTO[] }) {
         </p>
       </div>
 
-      <StatsHeader stats={stats} />
+      <StatsHeader stats={stats} exampleProject={exampleProject} />
 
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-1 rounded-lg border border-[var(--border)] p-1 bg-[var(--panel)]">
