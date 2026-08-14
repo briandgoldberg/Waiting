@@ -17,7 +17,7 @@ export function CauseBadge({ slug, linked = true }: { slug: CauseSlug; linked?: 
   if (!linked) return content;
 
   return (
-    <Link href={`/reform/${slug}`} className="hover:opacity-85">
+    <Link href={`/policies#${slug}`} className="hover:opacity-85">
       {content}
     </Link>
   );

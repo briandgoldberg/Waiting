@@ -79,21 +79,22 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                 <div key={slug} className="border-l-4 pl-4" style={{ borderColor: cause.color }}>
                   <div className="flex items-center gap-2 mb-1">
                     <CauseBadge slug={slug} />
-                    <span className="text-xs text-[var(--muted)]">→ reform: {cause.reformLever}</span>
                   </div>
                   <p className="text-sm">{cause.description}</p>
-                  <Link
-                    href={`/reform/${slug}`}
-                    className="text-xs font-medium text-[var(--accent)] underline mt-1 inline-block"
-                  >
-                    Read about this reform proposal →
-                  </Link>
                 </div>
               );
             })}
           </div>
         )}
         <p className="text-sm mt-4 border-t border-[var(--border)] pt-4">{p.causeDetail}</p>
+        {p.causeSlugs.length > 0 && (
+          <Link
+            href="/policies"
+            className="text-sm font-medium text-[var(--accent)] underline mt-4 inline-block"
+          >
+            See the policies that would fix this →
+          </Link>
+        )}
       </section>
 
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">

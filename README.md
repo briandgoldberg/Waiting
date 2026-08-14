@@ -7,10 +7,14 @@ approval, and why.
 **The argument is structural, not partisan:** solar, wind, storage, gas,
 nuclear, hydro, LNG, pipelines, and transmission all get stuck in the same
 handful of bottlenecks. Every tracked delay is mapped to one of seven named
-cause categories, and every cause category is paired with a specific,
-named permitting-reform proposal that targets it — see
-[`src/lib/data/causeCategories.ts`](src/lib/data/causeCategories.ts) and the
-in-app `/reform/*` pages.
+cause categories ([`src/lib/data/causeCategories.ts`](src/lib/data/causeCategories.ts)).
+The site's policy argument — six specific, bipartisan reform proposals, one
+per structural bottleneck, each with a stated problem, proposal, strengths,
+weaknesses, and bill links — lives on a single page,
+[`/policies`](src/app/policies/page.tsx)
+([`src/lib/data/policies.ts`](src/lib/data/policies.ts)), deliberately kept
+separate from the neutral cause-category data so "why a project is stuck"
+and "what we're arguing should change" aren't the same object.
 
 ## Quick start
 
@@ -147,9 +151,9 @@ per-data-source version of this list.
 ## Project schema
 
 See `prisma/schema.prisma` for the authoritative version. Key point: cause
-categories and their paired reform levers are **not** a database table —
-they're a fixed, small, code-reviewed set in
-`src/lib/data/causeCategories.ts`. Projects reference a cause by string
-slug, validated in app code, not a DB foreign key — adding a new cause
-category is meant to be a deliberate product/policy decision, not something
-an ingestion script can do silently.
+categories (and the policies argued for at `/policies`) are **not** a
+database table — they're fixed, small, code-reviewed sets in
+`src/lib/data/causeCategories.ts` and `src/lib/data/policies.ts`. Projects
+reference a cause by string slug, validated in app code, not a DB foreign
+key — adding a new cause category or policy is meant to be a deliberate
+product/policy decision, not something an ingestion script can do silently.

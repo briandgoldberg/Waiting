@@ -28,10 +28,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 Map &amp; list
               </Link>
               <Link
-                href="/reform/interconnection_queue_backlog"
+                href="/policies"
                 className="px-3 py-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/10"
               >
-                Reform proposals
+                Policies
               </Link>
               <Link href="/methodology" className="px-3 py-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/10">
                 Methodology

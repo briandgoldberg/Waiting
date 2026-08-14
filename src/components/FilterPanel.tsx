@@ -119,7 +119,7 @@ export function FilterPanel({
         </div>
       </Section>
 
-      <Section title="Cause / reform lever">
+      <Section title="Cause">
         <div className="flex flex-col gap-1.5">
           {CAUSE_CATEGORIES.map((c) => (
             <label key={c.slug} className="flex items-center gap-2 text-sm cursor-pointer">

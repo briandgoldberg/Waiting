@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import type { ProjectDTO } from "@/lib/types";
 import { DEFAULT_FILTERS, buildChips, hasActiveFilters, matchesFilters, type FilterState } from "@/lib/filters";
@@ -44,8 +45,11 @@ export function Explorer({ projects }: { projects: ProjectDTO[] }) {
         </h1>
         <p className="text-sm text-[var(--muted)] mt-1 max-w-3xl">
           Solar, wind, storage, gas, nuclear, hydro, LNG, pipelines, and transmission — tracked
-          side by side, with every delay mapped to one of seven named causes and the specific
-          reform proposal that targets it.
+          side by side, with every delay mapped to one of seven named causes. See the{" "}
+          <Link href="/policies" className="underline">
+            policies that would fix them
+          </Link>
+          .
         </p>
       </div>
 
