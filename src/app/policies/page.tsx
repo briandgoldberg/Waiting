@@ -1,19 +1,8 @@
 import Link from "next/link";
-import { prisma } from "@/lib/db";
-import { serializeProject } from "@/lib/serialize";
 import { CAUSE_CATEGORY_BY_SLUG } from "@/lib/data/causeCategories";
 import { POLICIES } from "@/lib/data/policies";
-import { formatCapacity } from "@/lib/data/taxonomies";
 
-export const dynamic = "force-dynamic";
-
-export default async function PoliciesPage() {
-  const projectRows = await prisma.project.findMany({
-    include: { causes: true, sources: true, milestones: true },
-    orderBy: { createdAt: "asc" },
-  });
-  const projects = projectRows.map(serializeProject).filter((p) => !p.isAggregateExample);
-
+export default function PoliciesPage() {
   return (
     <div className="mx-auto max-w-3xl w-full px-4 sm:px-6 py-6 flex flex-col gap-8">
       <div>
@@ -69,11 +58,6 @@ export default async function PoliciesPage() {
       <div className="flex flex-col gap-10">
         {POLICIES.map((policy) => {
           const cause = CAUSE_CATEGORY_BY_SLUG[policy.slug];
-          const relatedProjects = projects.filter((p) => p.causeSlugs.includes(policy.slug));
-          const totalMw = relatedProjects.reduce(
-            (sum, p) => (p.capacityUnit === "MW" && p.capacityValue != null ? sum + p.capacityValue : sum),
-            0,
-          );
 
           return (
             <section
@@ -158,42 +142,6 @@ export default async function PoliciesPage() {
                       </li>
                     ))}
                   </ul>
-                </div>
-
-                <div className="border-t border-[var(--border)] pt-4">
-                  <h3 className="text-sm uppercase tracking-wide text-[var(--muted)] mb-2">
-                    Currently in the data
-                  </h3>
-                  {relatedProjects.length > 0 ? (
-                    <>
-                      <p className="text-sm mb-3">
-                        <strong>{relatedProjects.length}</strong> project
-                        {relatedProjects.length === 1 ? "" : "s"} currently tracked under this
-                        cause, representing <strong>{Math.round(totalMw).toLocaleString("en-US")} MW</strong>{" "}
-                        across fuel types.
-                      </p>
-                      <ul className="flex flex-col gap-2">
-                        {relatedProjects.map((p) => (
-                          <li
-                            key={p.id}
-                            className="flex items-center justify-between gap-2 text-sm border-t border-[var(--border)] pt-2 first:border-t-0 first:pt-0"
-                          >
-                            <Link href={`/project/${p.slug}`} className="hover:underline font-medium">
-                              {p.name}
-                            </Link>
-                            <span className="text-[var(--muted)] text-xs whitespace-nowrap">
-                              {formatCapacity(p.capacityValue, p.capacityUnit)}
-                              {p.yearsWaiting != null ? ` · ${p.yearsWaiting.toFixed(1)} yrs` : ""}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  ) : (
-                    <p className="text-sm text-[var(--muted)]">
-                      No projects currently tagged with this cause.
-                    </p>
-                  )}
                 </div>
               </div>
             </section>
