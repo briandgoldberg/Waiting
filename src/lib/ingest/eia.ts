@@ -1,3 +1,10 @@
+// SUPERSEDED — see eia860mPlanned.ts. Confirmed live on 2026-08-14: this
+// route's `status` facet only has OP/OS/SB/OA (already-built plants), and
+// no EIA API v2 route anywhere exposes planned/proposed generators — that
+// data only exists in the EIA-860M Excel workbook's "Planned" tab.
+// ingestEia() below will return 0 rows if run with PROPOSED_STATUS_CODES as
+// written. Left in place for its research value, not for running.
+//
 // EIA API v2 ingestion — the backbone list of proposed/planned U.S.
 // generation projects (EIA-860/860M "Inventory of Operable Generators").
 //
