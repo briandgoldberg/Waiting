@@ -38,7 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </Link>
               <Link
                 href="/submit"
-                className="px-3 py-1.5 rounded-md bg-[var(--accent)] text-white hover:opacity-90"
+                className="px-3 py-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/10"
               >
                 Submit a project
               </Link>
