@@ -1,10 +1,10 @@
 "use client";
 
 import { CAUSE_CATEGORIES } from "@/lib/data/causeCategories";
-import { FUEL_TYPES, PROJECT_STAGES, PROJECT_TYPES, VERIFICATION_STATUSES } from "@/lib/data/taxonomies";
+import { FUEL_TYPES, PROJECT_STAGES, PROJECT_TYPES } from "@/lib/data/taxonomies";
 import type { FilterState } from "@/lib/filters";
 import type { CauseSlug } from "@/lib/data/causeCategories";
-import type { FuelType, ProjectStage, ProjectType, VerificationStatus } from "@/lib/data/taxonomies";
+import type { FuelType, ProjectStage, ProjectType } from "@/lib/data/taxonomies";
 
 function toggle<T>(arr: T[], value: T): T[] {
   return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
@@ -48,11 +48,9 @@ function Pill({
 export function FilterPanel({
   filters,
   onChange,
-  availableStates,
 }: {
   filters: FilterState;
   onChange: (f: FilterState) => void;
-  availableStates: string[];
 }) {
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
@@ -138,20 +136,6 @@ export function FilterPanel({
         </div>
       </Section>
 
-      <Section title="State">
-        <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-          {availableStates.map((st) => (
-            <Pill
-              key={st}
-              active={filters.states.includes(st)}
-              onClick={() => onChange({ ...filters, states: toggle<string>(filters.states, st) })}
-            >
-              {st}
-            </Pill>
-          ))}
-        </div>
-      </Section>
-
       <Section title="Capacity range (MW)">
         <div className="flex items-center gap-2 text-sm">
           <input
@@ -173,26 +157,6 @@ export function FilterPanel({
               onChange({ ...filters, maxCapacity: e.target.value === "" ? null : Number(e.target.value) })
             }
           />
-        </div>
-      </Section>
-
-      <Section title="Data source / verification">
-        <div className="flex flex-col gap-1.5">
-          {VERIFICATION_STATUSES.map((v) => (
-            <label key={v.value} className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={filters.verificationStatuses.includes(v.value)}
-                onChange={() =>
-                  onChange({
-                    ...filters,
-                    verificationStatuses: toggle<VerificationStatus>(filters.verificationStatuses, v.value),
-                  })
-                }
-              />
-              {v.label}
-            </label>
-          ))}
         </div>
       </Section>
     </div>

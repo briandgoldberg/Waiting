@@ -23,11 +23,6 @@ export function Explorer({ projects }: { projects: ProjectDTO[] }) {
   const [view, setView] = useState<"map" | "list">("map");
   const [panelOpen, setPanelOpen] = useState(true);
 
-  const availableStates = useMemo(
-    () => Array.from(new Set(projects.map((p) => p.state).filter((s): s is string => !!s))).sort(),
-    [projects],
-  );
-
   const filtered = useMemo(
     () => projects.filter((p) => matchesFilters(p, filters)),
     [projects, filters],
@@ -106,7 +101,7 @@ export function Explorer({ projects }: { projects: ProjectDTO[] }) {
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4 flex-1 min-h-[560px]">
         {panelOpen && (
           <div className="lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
-            <FilterPanel filters={filters} onChange={setFilters} availableStates={availableStates} />
+            <FilterPanel filters={filters} onChange={setFilters} />
           </div>
         )}
         <div className="h-[560px] lg:h-[calc(100vh-260px)] lg:min-h-[560px]">

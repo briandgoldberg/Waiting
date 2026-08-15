@@ -25,7 +25,7 @@ and "what we're arguing should change" aren't the same object.
 npm install
 cp .env.example .env      # set DATABASE_URL to your own Postgres instance
 npx prisma migrate deploy # applies the committed migrations to your database
-npx tsx prisma/seed.ts    # loads the v1 curated seed set (see below)
+npm run ingest:permitting-dashboard  # populate from a live, no-key-needed source
 npm run dev
 ```
 
@@ -37,42 +37,27 @@ Vercel/Prisma Postgres, RDS, local `postgres` via Docker, etc.).
 
 ## Data & sourcing
 
-**v1's seed data (`prisma/seed.ts`) is a small, hand-researched set of 10
-real, individually-cited projects** spanning every project type and fuel
-type — not a live pull from the automated ingestion pipeline. That pipeline
-(`src/lib/ingest/`) is real, working code, verified against live API
-responses while building it, but running it end-to-end needs credentials
-and a manually-downloaded file this environment didn't have:
+**All project data comes from live, re-runnable sources — no hand-curated
+one-off research.** An earlier version of this project shipped a small
+hand-researched seed set; it was removed deliberately in favor of sources
+that stay current on their own, rather than a snapshot that goes stale.
+See [`src/lib/ingest/README.md`](src/lib/ingest/README.md) for the full
+per-source table, open questions, and how each is scheduled:
 
-| Source | Module | What it needs to actually run |
+| Source | Module | Scheduled? |
 |---|---|---|
-| EIA-860/860M (EIA API v2) | `src/lib/ingest/eia.ts` | Free `EIA_API_KEY` |
-| Federal Permitting Dashboard | `src/lib/ingest/permittingDashboard.ts` | Nothing — public Socrata endpoint |
-| LBNL Queued Up | `src/lib/ingest/lbnlQueuedUp.ts` | The current year's Excel workbook, downloaded by hand from emp.lbl.gov/queues |
-| FERC eLibrary | `src/lib/ingest/fercSeed.ts` | Hand curation only — see why below |
+| EIA-860M "Planned" generator inventory | `src/lib/ingest/eia860mPlanned.ts` | Daily cron, `/api/cron/ingest-eia` |
+| Federal Permitting Dashboard (FAST-41) | `src/lib/ingest/permittingDashboard.ts` | Daily cron, `/api/cron/ingest-permitting-dashboard` |
+| LBNL Queued Up | `src/lib/ingest/lbnlQueuedUp.ts` | Not yet — needs a manually-downloaded annual file |
 
-Every seeded project links to the public reporting or primary source
-checked while building it (FERC/BOEM/EPA dockets, court rulings, trade
-press) — see each project's detail page. Where a date or figure wasn't
-confidently pinned to the day or exact number, the project is marked
-`dateConfidence: "approximate"` or carries a `dataQualityNote` saying so,
-rather than presenting invented precision as fact. This is a **launch set,
-not a comprehensive database** — notably absent: individual LBNL
-interconnection-queue projects (one aggregate PJM entry stands in for the
-category, clearly labeled as an aggregate — see below), hydropower
-relicensing, onshore wind, and standalone gas plants.
-
-### The PJM aggregate entry
-
-One seeded entry, "PJM Interconnection Queue — Regional Aggregate," is
-**not a single physical project** — it's PJM's own reported queue-wide
-statistics, included so the interconnection-queue-backlog cause category
-has a real, cited data point pending full ingestion of LBNL's
-project-level dataset. It's flagged `isAggregateExample: true`, shown with
-a visible label everywhere it appears, and **excluded from all aggregate
-headline stats** (total capacity, clean energy capacity, investment waiting) to avoid
-double-counting against individual projects. See
-[`/methodology`](src/app/methodology/page.tsx) in the running app.
+Every ingested project links back to its public source (see each project's
+detail page). Where a date or figure wasn't confidently available, the
+project is marked `dateConfidence: "approximate"` or carries a
+`dataQualityNote` saying so, rather than presenting invented precision as
+fact. Notably absent so far: individual LBNL interconnection-queue
+projects, hydropower relicensing detail, and any cause-category assignment
+for automatically-ingested projects (neither EIA nor the Permitting
+Dashboard publishes *why* a project is delayed — see open question #4).
 
 ## Open questions
 
@@ -80,31 +65,36 @@ Flagged deliberately rather than guessed at — see also
 [`src/lib/ingest/README.md`](src/lib/ingest/README.md) for the
 per-data-source version of this list.
 
-1. **Cross-source project identity matching is unsolved.** EIA, the
-   Permitting Dashboard, and LBNL each use their own name/ID for what might
-   be the same physical project. v1 ships a manual-override path
-   (`src/lib/ingest/manualOverrides.ts` + `.csv`) for a human to declare two
-   source records are the same project, but no automated fuzzy-matching.
-   Building real matching (name similarity + geographic proximity +
-   capacity similarity) is the highest-value follow-up engineering task.
-2. **Permitting Dashboard has no public milestone/timeline or
+1. **Cross-source project identity matching is a real, ongoing problem,
+   not fully solved.** EIA and the Permitting Dashboard use their own
+   name/ID for what might be the same physical project. Three confirmed
+   duplicates (Grain Belt Express, SouthCoast Wind, Ocean Wind 1) were
+   caught and fixed by hand after the Permitting Dashboard's first live
+   run — see `KNOWN_DUPLICATE_PROJECT_IDS` in `permittingDashboard.ts`.
+   `src/lib/ingest/manualOverrides.ts` + `.csv` exists for a human to
+   declare two source records the same project via a shared `matchKey`,
+   but there's no automated fuzzy-matching. Building real matching (name
+   similarity + geographic proximity + capacity similarity) is the
+   highest-value follow-up engineering task.
+2. **Permitting Dashboard's Socrata dataset is a denormalized join, not
+   one row per project** — a single query can return dozens of
+   byte-for-byte duplicate rows per project. The ingestion module dedupes
+   before normalizing; watch for this if the row count from a fresh run
+   ever looks far higher than expected.
+3. **Permitting Dashboard has no public milestone/timeline or
    application-filed-date field** on the open Socrata dataset this project
    used — that data likely exists behind the token-gated
    `/api/v1/project/{id}` endpoint mentioned in the dashboard's own docs,
    which wasn't registered for in this pass.
-3. **EIA and the Permitting Dashboard don't publish a cause category.**
+4. **EIA and the Permitting Dashboard don't publish a cause category.**
    Every project ingested from either source ships with `causeSlugs: []`
    and an explicit note that it needs manual/derived assignment, rather
    than a guessed default.
-4. **LBNL Queued Up column names are unverified against a real downloaded
+5. **LBNL Queued Up column names are unverified against a real downloaded
    workbook** — the parser was written from familiarity with past editions
    of the codebook and fails loudly (naming the missing column) rather than
    silently misreading a shifted one. Check the current workbook's own
    codebook tab before relying on it.
-5. **FERC eLibrary has no public API**, and this project didn't check
-   elibrary.ferc.gov's robots.txt/terms of use for whether scraping search
-   results would be permitted — so it isn't scraped. All FERC-sourced
-   projects here are hand-curated with individually-checked citations.
 6. **Redistribution terms aren't fully confirmed for any source.** Federal
    (.gov) data is generally public domain under 17 U.S.C. §105, consistent
    with default federal open-data licensing norms, but no dataset-specific
@@ -131,7 +121,7 @@ per-data-source version of this list.
 
 - **Next.js (App Router) + TypeScript + Tailwind v4**, single app.
 - **Prisma + Postgres** (`prisma/schema.prisma`) — one hosted instance used
-  for both local dev and production; see open question #8 for why this
+  for both local dev and production; see open question #7 for why this
   project moved off SQLite.
 - **MapLibre GL JS** for the map — a free CARTO Voyager vector basemap (no
   API token required), with projects rendered as plain DOM markers

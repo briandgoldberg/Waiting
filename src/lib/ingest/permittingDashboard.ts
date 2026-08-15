@@ -46,9 +46,9 @@
 //      confirming this explicitly for data.permits.performance.gov —
 //      confirm before any large-scale redistribution of the raw dataset.
 //
-// IMPORTANT — like eia.ts, this module is NOT run automatically by
-// prisma/seed.ts. Run `npx tsx src/lib/ingest/permittingDashboard.ts`
-// yourself to pull the live dataset.
+// Runs on a daily cron (src/app/api/cron/ingest-permitting-dashboard) in
+// production. Run `npx tsx src/lib/ingest/permittingDashboard.ts` (or
+// `npm run ingest:permitting-dashboard`) yourself for a manual pull.
 
 import type { CauseSlug } from "@/lib/data/causeCategories";
 import type { FuelType, ProjectStage, ProjectType } from "@/lib/data/taxonomies";
@@ -137,22 +137,15 @@ interface DashboardRecord {
 // time — upserts are idempotent by project_id either way.
 const EXCLUDED_STATUSES = ["Complete", "Cancelled"];
 
-// Cross-source identity matching (README open question #1): these
-// Permitting Dashboard project_ids are the SAME physical project as an
-// existing hand-curated seed entry (prisma/seed.ts), confirmed by name and
-// (for Grain Belt Express) a matching Permitting Dashboard URL already
-// cited in the seed entry's own sources. The seed entries bypass the
-// matchKey/slugify pipeline entirely (hardcoded slugs in seed.ts), so a
-// manualOverrides.csv row can't make this ingestion path land on the same
-// row automatically — simplest honest fix is to skip these specific IDs
-// here, in favor of the more detailed hand-researched entry. Confirmed
-// live on 2026-08-15. Revisit if the seed entries are ever migrated onto
-// the shared matchKey system.
-const KNOWN_DUPLICATE_PROJECT_IDS: Record<string, string> = {
-  "109441": "Grain Belt Express Transmission — Phase 1 (seed entry, more detailed)",
-  "95051": "SouthCoast Wind (seed entry, more detailed)",
-  "74166": "Ocean Wind 1 (seed entry — also more accurately shows status as cancelled)",
-};
+// NOTE on cross-source identity matching (README open question #1): a
+// prior version of this file skipped project_ids 109441 (Grain Belt
+// Express), 95051 (SouthCoast Wind), and 74166 (Ocean Wind 1) as
+// duplicates of hand-curated seed entries. Those seed entries have since
+// been removed entirely (this project moved to updatable-sources-only —
+// see README), so there's nothing left for them to duplicate. The skip
+// list was removed so these three real, tracked projects get ingested
+// normally again. If a future source reintroduces an overlapping record
+// for one of these, use manualOverrides.csv rather than a hardcoded skip.
 
 async function fetchAll(): Promise<DashboardRecord[]> {
   const sectorClause = ENERGY_SECTORS.map((s) => `'${s}'`).join(",");
@@ -171,7 +164,6 @@ async function fetchAll(): Promise<DashboardRecord[]> {
   for (const row of rows) {
     if (seen.has(row.project_id)) continue;
     if (EXCLUDED_STATUSES.includes(row.project_field_project_status ?? "")) continue;
-    if (row.project_id in KNOWN_DUPLICATE_PROJECT_IDS) continue;
     seen.add(row.project_id);
     deduped.push(row);
   }

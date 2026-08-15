@@ -32,13 +32,9 @@
 // current EIA-860M technical documentation before relying on it in
 // production, since EIA has changed status codes before.
 //
-// IMPORTANT — this module is NOT run automatically by `prisma/seed.ts`.
-// The seed data shipped in this repo is a small, hand-researched set of
-// real, individually-cited projects (see README "Data & sourcing"), not a
-// live EIA pull. Run `npx tsx src/lib/ingest/eia.ts` yourself with a real
-// EIA_API_KEY to pull the current national dataset — expect several
-// thousand rows and budget for pagination (the API caps JSON responses at
-// 5,000 rows per request).
+// Do not run this module — see the SUPERSEDED notice at the top of this
+// file. Use eia860mPlanned.ts instead, which is what's actually wired into
+// the daily cron (src/app/api/cron/ingest-eia).
 
 import type { CauseSlug } from "@/lib/data/causeCategories";
 import type { FuelType, ProjectStage } from "@/lib/data/taxonomies";

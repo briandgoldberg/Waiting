@@ -2,10 +2,12 @@ import type { AggregateStats } from "@/lib/types";
 import type { ProjectDTO } from "@/lib/types";
 import { ZERO_CARBON_FUELS } from "@/lib/data/taxonomies";
 
-// Aggregate stats deliberately exclude `isAggregateExample` projects (like
-// the PJM regional aggregate in the seed set) — mixing a regional aggregate
-// into a sum of individual projects would double-count and overstate the
-// total. See prisma/seed.ts for why that entry exists at all.
+// Aggregate stats deliberately exclude `isAggregateExample` projects —
+// e.g. a regional/ISO-wide statistic standing in for many individual
+// projects — since mixing one into a sum of individual projects would
+// double-count and overstate the total. No source currently ingested
+// produces one of these, but the flag and this exclusion stay in place for
+// whenever one does (see prisma/schema.prisma for the field's intent).
 export function computeAggregateStats(projects: ProjectDTO[]): AggregateStats {
   const realProjects = projects.filter((p) => !p.isAggregateExample);
 

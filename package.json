@@ -9,10 +9,8 @@
     "lint": "eslint",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "seed": "tsx prisma/seed.ts"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "ingest:eia": "tsx src/lib/ingest/eia860mPlanned.ts",
+    "ingest:permitting-dashboard": "tsx src/lib/ingest/permittingDashboard.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.3.0",
