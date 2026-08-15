@@ -159,39 +159,12 @@ export default function MethodologyPage() {
             proposed U.S. generation and storage capacity — location, capacity, technology, and
             status for every planned generator above a capacity threshold.
           </li>
-          <li>
-            <strong>
-              <a
-                href="https://permits.performance.gov/"
-                target="_blank"
-                rel="noreferrer"
-                className="underline"
-              >
-                Federal Permitting Dashboard
-              </a>
-            </strong>{" "}
-            — FAST-41 covered major infrastructure projects, tracked by agency and status.
-            Integration planned, not yet live on the site.
-          </li>
-          <li>
-            <strong>
-              <a href="https://emp.lbl.gov/queues" target="_blank" rel="noreferrer" className="underline">
-                LBNL &ldquo;Queued Up&rdquo;
-              </a>
-            </strong>{" "}
-            — the most comprehensive U.S. interconnection-queue dataset, aggregated annually
-            across 50+ grid operators. Integration planned, not yet live on the site.
-          </li>
-          <li>
-            <strong>FERC eLibrary</strong> — docket search for LNG and hydropower licensing
-            proceedings, used selectively to hand-curate individual projects rather than as a bulk
-            source.
-          </li>
         </ul>
         <p className="text-sm mt-4 pt-4 border-t border-[var(--border)]">
-          Our data and sources are always growing — check back soon. See the repo&rsquo;s README
-          for the full list of open questions, including cross-source project identity matching
-          and data source terms of use, flagged rather than silently guessed at.
+          More sources are coming soon — our data and coverage are always growing, check back
+          soon. See the repo&rsquo;s README for the full list of open questions, including
+          cross-source project identity matching and data source terms of use, flagged rather
+          than silently guessed at.
         </p>
       </section>
     </div>

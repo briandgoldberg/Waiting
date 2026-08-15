@@ -28,16 +28,12 @@ const MAP_STYLE = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
 function capacityRadius(p: ProjectDTO): number {
   if (p.capacityUnit === "MW" && p.capacityValue != null) {
     // sqrt scale so area (not radius) is roughly proportional to capacity
-    return Math.max(6, Math.min(22, Math.sqrt(p.capacityValue) * 0.7));
+    return Math.max(3.5, Math.min(12, Math.sqrt(p.capacityValue) * 0.4));
   }
-  return 7;
+  return 4;
 }
 
-function primaryColor(p: ProjectDTO): string {
-  const first = p.causeSlugs[0];
-  if (!first) return "#9ca3af";
-  return getCauseCategory(first)?.color ?? "#9ca3af";
-}
+const MARKER_COLOR = "#2563eb";
 
 function popupHtml(p: ProjectDTO): string {
   const causeLabel = p.causeSlugs[0] ? getCauseCategory(p.causeSlugs[0])?.label : "Not yet determined";
@@ -110,8 +106,8 @@ export function Map({ projects }: { projects: ProjectDTO[] }) {
         const el = document.createElement("div");
         el.style.cssText = `
           width:${size}px;height:${size}px;border-radius:50%;
-          background:${primaryColor(p)};opacity:0.85;
-          border:1.5px solid #ffffff;box-shadow:0 1px 3px rgba(0,0,0,0.3);
+          background:${MARKER_COLOR};opacity:0.85;
+          border:1px solid #ffffff;box-shadow:0 1px 2px rgba(0,0,0,0.3);
           cursor:pointer;
         `;
         el.addEventListener("click", (e) => {
