@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import maplibregl, { type Map as MaplibreMap, type GeoJSONSource } from "maplibre-gl";
+import maplibregl, { type Map as MaplibreMap } from "maplibre-gl";
 import type { ProjectDTO } from "@/lib/types";
 import { getCauseCategory } from "@/lib/data/causeCategories";
 import { formatCapacity } from "@/lib/data/taxonomies";
@@ -11,12 +11,26 @@ import { formatCapacity } from "@/lib/data/taxonomies";
 // which MapLibre renders automatically from the style's own metadata.
 const MAP_STYLE = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
 
+// v2 of this component used a clustered GeoJSON source rendered as GL
+// circle layers. In production, pins never appeared on first load — only
+// sometimes, after a filter change forced a fresh source.setData() call —
+// pointing at a timing issue in MapLibre's worker-built tile/cluster
+// pipeline (geojson-vt/supercluster run off the main thread) rather than
+// anything about the data itself. Rather than keep chasing that pipeline's
+// internal timing, this version sidesteps it entirely: plain DOM markers
+// (maplibregl.Marker), positioned with CSS transforms on every render tick,
+// no worker, no tiling, no clustering. Simpler and much harder to get stuck
+// in a "silently never rendered" state. Trade-off: no native clustering, so
+// dense areas show overlapping pins rather than a merged bubble — acceptable
+// at hundreds of points; revisit with client-side clustering (e.g.
+// supercluster run on the main thread) if density becomes a real problem.
+
 function capacityRadius(p: ProjectDTO): number {
   if (p.capacityUnit === "MW" && p.capacityValue != null) {
     // sqrt scale so area (not radius) is roughly proportional to capacity
-    return Math.max(6, Math.min(28, Math.sqrt(p.capacityValue) * 0.9));
+    return Math.max(6, Math.min(22, Math.sqrt(p.capacityValue) * 0.7));
   }
-  return 8;
+  return 7;
 }
 
 function primaryColor(p: ProjectDTO): string {
@@ -25,35 +39,32 @@ function primaryColor(p: ProjectDTO): string {
   return getCauseCategory(first)?.color ?? "#9ca3af";
 }
 
-function toFeatureCollection(projects: ProjectDTO[]) {
-  return {
-    type: "FeatureCollection" as const,
-    features: projects
-      .filter((p) => p.lat != null && p.lon != null)
-      .map((p) => ({
-        type: "Feature" as const,
-        geometry: { type: "Point" as const, coordinates: [p.lon as number, p.lat as number] },
-        properties: {
-          id: p.id,
-          slug: p.slug,
-          name: p.name,
-          state: p.state,
-          fuelType: p.fuelType,
-          stage: p.currentStage,
-          yearsWaiting: p.yearsWaiting,
-          capacityLabel: formatCapacity(p.capacityValue, p.capacityUnit),
-          causeLabel: p.causeSlugs[0] ? getCauseCategory(p.causeSlugs[0])?.label : "Not yet determined",
-          color: primaryColor(p),
-          radius: capacityRadius(p),
-          isAggregateExample: p.isAggregateExample,
-        },
-      })),
-  };
+function popupHtml(p: ProjectDTO): string {
+  const causeLabel = p.causeSlugs[0] ? getCauseCategory(p.causeSlugs[0])?.label : "Not yet determined";
+  const capacityLabel = formatCapacity(p.capacityValue, p.capacityUnit);
+  return `
+    <div style="min-width:220px;font-family:inherit;">
+      <div style="padding:12px 14px 10px;border-bottom:1px solid var(--border);">
+        <div style="font-weight:600;font-size:14px;line-height:1.3;">${p.name}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">
+          ${p.state ?? ""} · ${capacityLabel}${p.isAggregateExample ? " · aggregate" : ""}
+        </div>
+      </div>
+      <div style="padding:10px 14px;font-size:12px;">
+        <div><strong>Waiting:</strong> ${p.yearsWaiting != null ? p.yearsWaiting.toFixed(1) + " yrs" : "—"}</div>
+        <div><strong>Cause:</strong> ${causeLabel}</div>
+        <a href="/project/${p.slug}" style="display:inline-block;margin-top:8px;font-size:12px;font-weight:600;color:var(--accent);text-decoration:underline;">
+          View project →
+        </a>
+      </div>
+    </div>
+  `;
 }
 
 export function Map({ projects }: { projects: ProjectDTO[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MaplibreMap | null>(null);
+  const markersRef = useRef<maplibregl.Marker[]>([]);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const projectsRef = useRef(projects);
   projectsRef.current = projects;
@@ -73,188 +84,61 @@ export function Map({ projects }: { projects: ProjectDTO[] }) {
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
 
-    // MapLibre's "load" event is the textbook way to know a map is ready,
-    // but in production it has been observed to never fire even after the
-    // basemap has visibly finished rendering (isStyleLoaded()/loaded() stay
-    // false indefinitely — some style sub-resource apparently never
-    // resolves the internal "fully loaded" bookkeeping, despite every
-    // tile/sprite/glyph request succeeding). Gating addSource/addLayer
-    // behind "load" alone silently drops every project pin when that
-    // happens — confirmed live in production on 2026-08-14: tiles/sprite
-    // all 200'd, the basemap rendered, but isStyleLoaded() stayed false
-    // forever and "load" never fired, so the "projects" source was never
-    // added at all. Fix: don't wait on any single event. Retry a cheap,
-    // idempotent setup function on a short interval until it actually
-    // succeeds, using isStyleLoaded() (not the "load" event) as the
-    // real readiness check — addSource works as soon as that's true,
-    // regardless of whether "load" itself ever fires.
-    let cancelled = false;
-    let attempts = 0;
-
-    function trySetUpProjectLayers() {
-      if (cancelled || map.getSource("projects")) return;
-      attempts += 1;
-
-      // isStyleLoaded()/loaded() are NOT used as the gate here — confirmed
-      // live in production that they can stay false forever even though
-      // addSource works fine. Just try it, and if the style genuinely
-      // isn't ready yet (it throws), retry shortly. This is what actually
-      // succeeds in the environment where the flags never flip.
-      try {
-        map.addSource("projects", {
-          type: "geojson",
-          data: toFeatureCollection(projectsRef.current) as GeoJSON.FeatureCollection,
-          cluster: true,
-          clusterMaxZoom: 8,
-          clusterRadius: 40,
-        });
-      } catch {
-        if (attempts < 100) setTimeout(trySetUpProjectLayers, 100); // ~10s ceiling
-        return;
-      }
-
-      map.addLayer({
-        id: "clusters",
-        type: "circle",
-        source: "projects",
-        filter: ["has", "point_count"],
-        paint: {
-          "circle-color": "#1e3a5f",
-          "circle-opacity": 0.85,
-          "circle-radius": ["step", ["get", "point_count"], 16, 10, 22, 25, 28],
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#ffffff",
-        },
-      });
-
-      map.addLayer({
-        id: "cluster-count",
-        type: "symbol",
-        source: "projects",
-        filter: ["has", "point_count"],
-        layout: {
-          "text-field": ["get", "point_count_abbreviated"],
-          "text-size": 12,
-          "text-font": ["Noto Sans Bold"],
-        },
-        paint: { "text-color": "#ffffff" },
-      });
-
-      map.addLayer({
-        id: "unclustered-point",
-        type: "circle",
-        source: "projects",
-        filter: ["!", ["has", "point_count"]],
-        paint: {
-          "circle-color": ["get", "color"],
-          "circle-radius": ["get", "radius"],
-          "circle-opacity": 0.82,
-          "circle-stroke-width": 1.5,
-          "circle-stroke-color": "#ffffff",
-        },
-      });
-
-      map.on("click", "clusters", async (e) => {
-        const features = map.queryRenderedFeatures(e.point, { layers: ["clusters"] });
-        const clusterId = features[0]?.properties?.cluster_id;
-        const source = map.getSource("projects") as GeoJSONSource;
-        if (clusterId == null) return;
-        const zoom = await source.getClusterExpansionZoom(clusterId);
-        const coords = (features[0].geometry as GeoJSON.Point).coordinates as [number, number];
-        map.easeTo({ center: coords, zoom });
-      });
-
-      map.on("click", "unclustered-point", (e) => {
-        const feature = e.features?.[0];
-        if (!feature) return;
-        const props = feature.properties as Record<string, string | number | boolean>;
-        const coords = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
-
-        popupRef.current?.remove();
-        const el = document.createElement("div");
-        el.innerHTML = `
-          <div style="min-width:220px;font-family:inherit;">
-            <div style="padding:12px 14px 10px;border-bottom:1px solid var(--border);">
-              <div style="font-weight:600;font-size:14px;line-height:1.3;">${props.name}</div>
-              <div style="font-size:12px;color:var(--muted);margin-top:2px;">
-                ${props.state ?? ""} · ${props.capacityLabel}${props.isAggregateExample ? " · aggregate" : ""}
-              </div>
-            </div>
-            <div style="padding:10px 14px;font-size:12px;">
-              <div><strong>Waiting:</strong> ${
-                props.yearsWaiting != null ? Number(props.yearsWaiting).toFixed(1) + " yrs" : "—"
-              }</div>
-              <div><strong>Cause:</strong> ${props.causeLabel}</div>
-              <a href="/project/${props.slug}" style="display:inline-block;margin-top:8px;font-size:12px;font-weight:600;color:var(--accent);text-decoration:underline;">
-                View project →
-              </a>
-            </div>
-          </div>
-        `;
-
-        popupRef.current = new maplibregl.Popup({ closeButton: true, maxWidth: "260px" })
-          .setLngLat(coords)
-          .setDOMContent(el)
-          .addTo(map);
-      });
-
-      map.on("mouseenter", "unclustered-point", () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", "unclustered-point", () => {
-        map.getCanvas().style.cursor = "";
-      });
-      map.on("mouseenter", "clusters", () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", "clusters", () => {
-        map.getCanvas().style.cursor = "";
-      });
-
-      // Reported in production: pins are invisible on first load, but
-      // selecting filters (which calls source.setData() again via the
-      // effect below) makes some appear. That means the pipeline itself
-      // works — the very first paint after addSource+addLayer just doesn't
-      // "take" reliably (a known class of GL-source timing issue: the
-      // browser hasn't had a real paint tick yet when the initial data is
-      // set, all in one synchronous block). Rather than require a user
-      // interaction to fix it, replay setData a few times on a short delay
-      // schedule — cheap, idempotent, and each call is what empirically
-      // fixes it when a filter change triggers it manually.
-      const source = map.getSource("projects") as GeoJSONSource;
-      const poke = () => {
-        if (cancelled) return;
-        source.setData(toFeatureCollection(projectsRef.current) as GeoJSON.FeatureCollection);
-        map.resize();
-        map.triggerRepaint();
-      };
-      poke();
-      [50, 250, 750, 2000].forEach((delay) => setTimeout(poke, delay));
-    }
-
-    // Race every plausible readiness signal — whichever comes first wins,
-    // the rest are harmless no-ops thanks to the getSource("projects") guard.
-    map.on("load", trySetUpProjectLayers);
-    map.on("styledata", trySetUpProjectLayers);
-    map.on("idle", trySetUpProjectLayers);
-    trySetUpProjectLayers();
-
     return () => {
-      cancelled = true;
       map.remove();
       mapRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update data when the filtered project set changes.
+  // (Re)build markers whenever the filtered project set changes. Simplest
+  // correct approach: clear everything and re-add — cheap at hundreds of
+  // markers, and avoids diffing bugs.
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    const source = map.getSource("projects") as GeoJSONSource | undefined;
-    if (source) source.setData(toFeatureCollection(projects) as GeoJSON.FeatureCollection);
-    // If the source doesn't exist yet, trySetUpProjectLayers's own retry
-    // loop will pick up the latest projectsRef.current value once it runs.
+    const maybeMap = mapRef.current;
+    if (!maybeMap) return;
+    const map: MaplibreMap = maybeMap;
+
+    function renderMarkers() {
+      markersRef.current.forEach((m) => m.remove());
+      markersRef.current = [];
+
+      for (const p of projectsRef.current) {
+        if (p.lat == null || p.lon == null) continue;
+
+        const size = capacityRadius(p) * 2;
+        const el = document.createElement("div");
+        el.style.cssText = `
+          width:${size}px;height:${size}px;border-radius:50%;
+          background:${primaryColor(p)};opacity:0.85;
+          border:1.5px solid #ffffff;box-shadow:0 1px 3px rgba(0,0,0,0.3);
+          cursor:pointer;
+        `;
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          popupRef.current?.remove();
+          popupRef.current = new maplibregl.Popup({ closeButton: true, maxWidth: "260px" })
+            .setLngLat([p.lon as number, p.lat as number])
+            .setHTML(popupHtml(p))
+            .addTo(map);
+        });
+
+        const marker = new maplibregl.Marker({ element: el })
+          .setLngLat([p.lon, p.lat])
+          .addTo(map);
+        markersRef.current.push(marker);
+      }
+    }
+
+    if (map.loaded() || map.isStyleLoaded()) {
+      renderMarkers();
+    } else {
+      map.once("load", renderMarkers);
+    }
+    // Markers are plain DOM, so no readiness event is strictly required —
+    // render immediately too in case neither flag/event ever fires (same
+    // class of issue seen with the GL-layer approach this replaced).
+    renderMarkers();
   }, [projects]);
 
   return <div ref={containerRef} className="h-full w-full rounded-lg" />;
