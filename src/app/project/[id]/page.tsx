@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { serializeProject } from "@/lib/serialize";
 import { FUEL_TYPE_BY_VALUE, formatCapacity } from "@/lib/data/taxonomies";
 import { formatUsd } from "@/lib/calc/investmentWaiting";
+import { ShareButtons } from "@/components/ShareButtons";
 
 export const dynamic = "force-dynamic";
 
@@ -40,10 +41,18 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
             {p.projectType} · {fuel?.label ?? p.fuelType}
           </span>
         </div>
-        <h1 className="text-3xl font-bold tracking-tight">{p.name}</h1>
-        <p className="text-sm text-[var(--muted)] mt-1">
-          {[p.county, p.state].filter(Boolean).join(", ") || "Location not specified"}
-        </p>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">{p.name}</h1>
+            <p className="text-sm text-[var(--muted)] mt-1">
+              {[p.county, p.state].filter(Boolean).join(", ") || "Location not specified"}
+            </p>
+          </div>
+          <ShareButtons
+            url={`https://waitingforpower.com/project/${p.slug}`}
+            text={`${p.name} has been waiting${p.yearsWaiting != null ? ` ${p.yearsWaiting.toFixed(1)} years` : ""} for approval. Tracked on WaitingForPower.`}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -74,33 +83,6 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           </>
         ) : (
           <p className="text-sm text-[var(--muted)]">Not estimated: {p.investmentWaiting.reason}</p>
-        )}
-      </section>
-
-      <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">
-        <h2 className="text-lg font-semibold mb-4">Timeline</h2>
-        {p.milestones.length === 0 ? (
-          <p className="text-sm text-[var(--muted)]">No milestone history recorded yet.</p>
-        ) : (
-          <ol className="relative border-l border-[var(--border)] ml-2 flex flex-col gap-5">
-            {p.milestones.map((m, i) => (
-              <li key={i} className="ml-4">
-                <span className="absolute -translate-x-[7px] mt-1 h-3 w-3 rounded-full bg-[var(--accent)]" />
-                <div className="text-xs text-[var(--muted)]">
-                  {new Date(m.date).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                    timeZone: "UTC",
-                  })}
-                  {m.dateConfidence === "approximate" && " (approx.)"}
-                  {" · "}
-                  <span className="uppercase tracking-wide">{m.stage.replace(/_/g, " ")}</span>
-                </div>
-                <div className="text-sm mt-0.5">{m.description}</div>
-              </li>
-            ))}
-          </ol>
         )}
       </section>
 

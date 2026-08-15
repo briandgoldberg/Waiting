@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
+import { ShareButtons } from "@/components/ShareButtons";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -41,6 +42,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 Contact us
               </Link>
             </nav>
+            <ShareButtons
+              url="https://waitingforpower.com"
+              text="America needs power. It's stuck waiting. WaitingForPower tracks U.S. energy projects waiting on approval — every fuel type."
+            />
           </div>
         </header>
         <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-900/40 text-amber-900 dark:text-amber-200">

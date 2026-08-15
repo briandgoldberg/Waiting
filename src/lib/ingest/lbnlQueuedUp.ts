@@ -180,14 +180,15 @@ function resourceTypeToFuel(resourceType: string): FuelType {
 // sources can't (they default every project to "agency_permitting") — see
 // FIELD_CANDIDATES.iaPhase. Only reachable for q_status === "active" rows
 // (withdrawn/operational/suspended are filtered out before this runs), and
-// rows whose phase is "Construction" are filtered out separately (see
-// ingestLbnlQueuedUpBuffer) — per explicit product decision, this site
-// tracks projects still waiting on permitting/interconnection processes,
-// and a project whose interconnection facilities are already under
-// construction has cleared that hurdle even if the plant itself hasn't
-// come online yet. So this function never actually needs to return
-// "under_construction" in practice, but keeps the check in case a future
-// edition's phase labels drift.
+// rows whose phase is "Construction", "IA Executed", or "IA Pending" are
+// filtered out separately (see ingestLbnlQueuedUpBuffer) — per explicit
+// product decision, an executed/pending interconnection agreement means
+// the project has already cleared the permitting/interconnection process
+// this site is about; that's not "in the spirit of the dashboard" even
+// though the plant itself isn't built yet. So this function never actually
+// returns "under_construction" or "approved_awaiting_construction" in
+// practice, but keeps both checks in case a future edition's phase labels
+// drift.
 function iaPhaseToStage(phase: string): ProjectStage {
   const p = phase.toLowerCase();
   if (p.includes("construction")) return "under_construction";
@@ -299,7 +300,7 @@ export interface IngestSummary {
   upserted: number;
   skippedBelowFloor: number;
   skippedNotActive: number;
-  skippedUnderConstruction: number;
+  skippedAlreadyCleared: number;
   errors: { matchKey: string; message: string }[];
   sourceFileUrl?: string;
 }
@@ -310,14 +311,14 @@ export async function ingestLbnlQueuedUpBuffer(
 ): Promise<IngestSummary> {
   const rows = parseWorkbookBuffer(buf);
   if (rows.length === 0) {
-    return { upserted: 0, skippedBelowFloor: 0, skippedNotActive: 0, skippedUnderConstruction: 0, errors: [] };
+    return { upserted: 0, skippedBelowFloor: 0, skippedNotActive: 0, skippedAlreadyCleared: 0, errors: [] };
   }
   const headerRow = Object.keys(rows[0]);
   const fieldMap = resolveFieldMap(headerRow);
 
   let skippedBelowFloor = 0;
   let skippedNotActive = 0;
-  let skippedUnderConstruction = 0;
+  let skippedAlreadyCleared = 0;
   const toUpsert: NormalizedProject[] = [];
 
   for (const row of rows) {
@@ -327,11 +328,14 @@ export async function ingestLbnlQueuedUpBuffer(
       continue;
     }
     // Per explicit product decision: only import LBNL rows still waiting on
-    // permitting/interconnection processes, not ones whose interconnection
-    // facilities are already under construction — see iaPhaseToStage.
+    // permitting/interconnection processes — not ones whose interconnection
+    // facilities are already under construction, and not ones with an
+    // executed or pending interconnection agreement, since either means the
+    // project has already cleared the process this site tracks. See
+    // iaPhaseToStage.
     const iaPhase = String(row[fieldMap.iaPhase!] ?? "").toLowerCase();
-    if (iaPhase.includes("construction")) {
-      skippedUnderConstruction += 1;
+    if (iaPhase.includes("construction") || iaPhase.includes("ia executed") || iaPhase.includes("ia pending")) {
+      skippedAlreadyCleared += 1;
       continue;
     }
     const capacity = Number(row[fieldMap.capacityMw!] ?? NaN);
@@ -344,7 +348,7 @@ export async function ingestLbnlQueuedUpBuffer(
 
   const { upserted, errors } = await upsertNormalizedProjects(toUpsert);
 
-  return { upserted, skippedBelowFloor, skippedNotActive, skippedUnderConstruction, errors };
+  return { upserted, skippedBelowFloor, skippedNotActive, skippedAlreadyCleared, errors };
 }
 
 export async function ingestLbnlQueuedUp(filePath: string, minCapacityMw = MIN_CAPACITY_MW): Promise<IngestSummary> {
@@ -386,7 +390,7 @@ if (require.main === module) {
       console.log(
         `LBNL Queued Up ingestion complete: upserted ${summary.upserted} projects ` +
           `(skipped ${summary.skippedBelowFloor} below the ${MIN_CAPACITY_MW} MW floor, ` +
-          `${summary.skippedNotActive} non-active rows, ${summary.skippedUnderConstruction} already-under-construction rows, ` +
+          `${summary.skippedNotActive} non-active rows, ${summary.skippedAlreadyCleared} already-cleared-permitting rows (construction/IA executed/IA pending), ` +
           `${summary.errors.length} errors).` +
           (summary.sourceFileUrl ? ` Source: ${summary.sourceFileUrl}` : ""),
       );
