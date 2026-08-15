@@ -3,13 +3,16 @@
 import { useState } from "react";
 
 const TOPICS = [
-  { value: "data", label: "Adding more data" },
-  { value: "partnership", label: "Campaign partnerships" },
+  { value: "bug", label: "Report a technical issue" },
+  { value: "feedback", label: "Feedback or suggestion" },
+  { value: "data", label: "Add a project or data source" },
+  { value: "partnership", label: "Partnership or campaign collaboration" },
+  { value: "press", label: "Press or media inquiry" },
   { value: "other", label: "Something else" },
 ] as const;
 
 export default function ContactPage() {
-  const [topic, setTopic] = useState<(typeof TOPICS)[number]["value"]>("data");
+  const [topic, setTopic] = useState<(typeof TOPICS)[number]["value"]>("bug");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [organization, setOrganization] = useState("");
@@ -54,8 +57,8 @@ export default function ContactPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Contact us</h1>
         <p className="text-sm text-[var(--muted)] mt-1">
-          Have a project we should add, want to partner on getting the word out, or something
-          else entirely — tell us below.
+          Found a bug, have feedback, want to add a project, or want to partner with us — reach
+          out for any reason.
         </p>
       </div>
 
