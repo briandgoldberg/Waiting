@@ -2,26 +2,25 @@
 
 import { useState } from "react";
 
-// Twitter/X and Facebook both publish a real "share this URL" web intent.
-// Neither Instagram nor TikTok does — both are app-first with no official
-// web link for sharing an arbitrary external URL — so there's a single
-// generic "Share" button instead: it opens the OS share sheet (lists
+// Twitter/X publishes a real "share this URL" web intent that takes share
+// text directly. Neither Instagram nor TikTok does (both are app-first,
+// no official web link for sharing an arbitrary external URL) — so there's
+// a generic "Share" button too: it opens the OS share sheet (lists
 // whatever apps are actually installed, including Instagram/TikTok) where
 // supported, and falls back to copying the link to the clipboard where it
 // isn't (most desktop browsers).
 //
-// Facebook's sharer.php ignores any text passed via URL params (its old
-// `quote` param is unreliable and mostly deprecated) — it scrapes the
-// target URL's Open Graph tags (og:title/og:description) for what to show,
-// unlike Twitter's intent link, which does take a `text` param directly.
-// So getting "good" Facebook share text is a metadata problem, not
-// something this component can control — see generateMetadata in
-// src/app/project/[id]/page.tsx and the openGraph block in src/app/layout.tsx.
+// No Facebook button: its sharer.php ignores any text passed via URL
+// params (its old `quote` param is unreliable and mostly deprecated) — it
+// scrapes the target URL's Open Graph tags instead, so a dedicated button
+// wasn't adding a meaningfully different action from "Share" or just
+// pasting the link. The openGraph metadata (see src/app/layout.tsx and
+// generateMetadata in src/app/project/[id]/page.tsx) still makes link
+// previews look right anywhere OG tags are read, Facebook included.
 
 function shareUrls(url: string, text: string) {
   return {
     twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
-    facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
   };
 }
 
@@ -86,11 +85,6 @@ export function ShareButtons({ url, text }: { url: string; text: string }) {
       <IconButton label="Share on X (Twitter)" href={urls.twitter}>
         <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true">
           <path d="M18.9 2H22l-7.6 8.7L23.3 22h-7.1l-5.5-7.2L4.3 22H1.2l8.1-9.3L1 2h7.3l5 6.6L18.9 2Zm-1.2 18h1.9L7.4 4H5.4l12.3 16Z" />
-        </svg>
-      </IconButton>
-      <IconButton label="Share on Facebook" href={urls.facebook}>
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true">
-          <path d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.3c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 2.9h-2.4v7A10 10 0 0 0 22 12Z" />
         </svg>
       </IconButton>
       <IconButton label="Share" onClick={share}>

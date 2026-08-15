@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
-import { ShareButtons } from "@/components/ShareButtons";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
-// Facebook's share dialog doesn't take a text param the way Twitter's
-// intent link does — it scrapes the target URL's Open Graph tags for what
-// to show, so good Facebook share text is an openGraph metadata problem,
-// not something ShareButtons can control. See src/components/ShareButtons.tsx.
+// This openGraph/twitter metadata isn't tied to a specific share button —
+// it's what any link-preview reader (Facebook, Slack, iMessage, etc.) pulls
+// when this site's URL is pasted anywhere, regardless of how someone got
+// the link.
 const TITLE = "WaitingForPower — Energy Project Tracker";
 const DESCRIPTION =
   "Tracking proposed U.S. energy projects — generation, transmission, storage, LNG, and pipelines, every fuel type — and how long each has been waiting for approval, and why.";
@@ -61,10 +60,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 Contact us
               </Link>
             </nav>
-            <ShareButtons
-              url="https://waitingforpower.com"
-              text="America needs power. It's stuck waiting. WaitingForPower tracks U.S. energy projects waiting on approval — every fuel type."
-            />
           </div>
         </header>
         <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-900/40 text-amber-900 dark:text-amber-200">
