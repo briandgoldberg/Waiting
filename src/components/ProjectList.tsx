@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { ProjectDTO } from "@/lib/types";
 import { formatCapacity } from "@/lib/data/taxonomies";
 
-type SortKey = "name" | "location" | "daysWaiting" | "capacity" | "stage";
+type SortKey = "name" | "location" | "daysWaiting" | "capacity";
 type SortDir = "asc" | "desc";
 
 function exportCsv(projects: ProjectDTO[]) {
@@ -75,9 +75,6 @@ export function ProjectList({ projects }: { projects: ProjectDTO[] }) {
       case "capacity":
         cmp = (a.capacityValue ?? -1) - (b.capacityValue ?? -1);
         break;
-      case "stage":
-        cmp = a.currentStage.localeCompare(b.currentStage);
-        break;
     }
     return sortDir === "asc" ? cmp : -cmp;
   });
@@ -87,7 +84,6 @@ export function ProjectList({ projects }: { projects: ProjectDTO[] }) {
     { key: "location", label: "Location" },
     { key: "daysWaiting", label: "Waiting" },
     { key: "capacity", label: "Capacity" },
-    { key: "stage", label: "Stage" },
   ];
 
   return (
@@ -134,7 +130,6 @@ export function ProjectList({ projects }: { projects: ProjectDTO[] }) {
                 <td className="px-4 py-2.5 whitespace-nowrap tabular-nums">
                   {formatCapacity(p.capacityValue, p.capacityUnit)}
                 </td>
-                <td className="px-4 py-2.5 whitespace-nowrap">{p.currentStage.replace(/_/g, " ")}</td>
               </tr>
             ))}
           </tbody>
