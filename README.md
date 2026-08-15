@@ -1,5 +1,8 @@
 # Waiting — an Energy Project Tracker
 
+Open source, MIT licensed — see [`LICENSE`](LICENSE). Contributions,
+forks, and issues welcome.
+
 Tracks proposed U.S. energy projects — generation, transmission, storage,
 LNG, and pipelines, every fuel type — and how long each has been waiting for
 approval, and why.

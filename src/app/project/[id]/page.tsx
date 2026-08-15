@@ -24,12 +24,6 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div className="mx-auto max-w-4xl w-full px-4 sm:px-6 py-6 flex flex-col gap-6">
-      <div>
-        <Link href="/" className="text-sm text-[var(--muted)] hover:underline">
-          ← Back to map &amp; list
-        </Link>
-      </div>
-
       {p.isAggregateExample && (
         <div className="rounded-lg border border-amber-400/50 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-sm">
           <strong>This is a regional aggregate, not a single physical project.</strong> It&rsquo;s

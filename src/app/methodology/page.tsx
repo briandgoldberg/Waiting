@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { ASSUMED_WHOLESALE_PRICE_USD_PER_MWH, CAPACITY_FACTOR_BY_FUEL } from "@/lib/calc/costOfDelay";
 import { GRID_AVG_CO2_TONNES_PER_MWH, ZERO_CARBON_FUELS } from "@/lib/calc/co2Avoided";
 import { FUEL_TYPE_BY_VALUE } from "@/lib/data/taxonomies";
@@ -6,12 +5,6 @@ import { FUEL_TYPE_BY_VALUE } from "@/lib/data/taxonomies";
 export default function MethodologyPage() {
   return (
     <div className="mx-auto max-w-3xl w-full px-4 sm:px-6 py-6 flex flex-col gap-6">
-      <div>
-        <Link href="/" className="text-sm text-[var(--muted)] hover:underline">
-          ← Back to map &amp; list
-        </Link>
-      </div>
-
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Methodology</h1>
         <p className="text-sm text-[var(--muted)] mt-1">

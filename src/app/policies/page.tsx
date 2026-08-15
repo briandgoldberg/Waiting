@@ -1,16 +1,9 @@
-import Link from "next/link";
 import { CAUSE_CATEGORY_BY_SLUG } from "@/lib/data/causeCategories";
 import { POLICIES } from "@/lib/data/policies";
 
 export default function PoliciesPage() {
   return (
     <div className="mx-auto max-w-3xl w-full px-4 sm:px-6 py-6 flex flex-col gap-8">
-      <div>
-        <Link href="/" className="text-sm text-[var(--muted)] hover:underline">
-          ← Back to map &amp; list
-        </Link>
-      </div>
-
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Policies to support</h1>
         <p className="text-base text-[var(--muted)] mt-2 max-w-2xl">
