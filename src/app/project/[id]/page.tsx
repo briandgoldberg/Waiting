@@ -1,23 +1,68 @@
+import { cache } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { serializeProject } from "@/lib/serialize";
+import type { ProjectDTO } from "@/lib/types";
 import { FUEL_TYPE_BY_VALUE, formatCapacity } from "@/lib/data/taxonomies";
 import { formatUsd } from "@/lib/calc/investmentWaiting";
 import { ShareButtons } from "@/components/ShareButtons";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+// Deduped per-request via React's cache() so generateMetadata and the page
+// component (both invoked separately by Next.js for the same request)
+// don't double the DB round trip.
+const getProject = cache(async (slug: string) => {
   const project = await prisma.project.findUnique({
-    where: { slug: id },
+    where: { slug },
     include: { causes: true, sources: true, milestones: true },
   });
+  return project ? serializeProject(project) : null;
+});
 
-  if (!project) notFound();
+// Facebook's share dialog scrapes these Open Graph tags for its post text
+// rather than taking a URL param — see src/components/ShareButtons.tsx.
+// Kept as one function so the share-button text and the OG text can't
+// drift apart.
+function shareText(p: ProjectDTO): string {
+  return `${p.name} has been waiting${p.yearsWaiting != null ? ` ${p.yearsWaiting.toFixed(1)} years` : ""} for approval. Tracked on WaitingForPower.`;
+}
 
-  const p = serializeProject(project);
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const p = await getProject(id);
+  if (!p) return {};
+
+  const description = shareText(p);
+  return {
+    title: `${p.name} | WaitingForPower`,
+    description,
+    openGraph: {
+      title: p.name,
+      description,
+      url: `https://waitingforpower.com/project/${p.slug}`,
+      type: "website",
+    },
+    twitter: {
+      card: "summary",
+      title: p.name,
+      description,
+    },
+  };
+}
+
+export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const p = await getProject(id);
+
+  if (!p) notFound();
+
   const fuel = FUEL_TYPE_BY_VALUE[p.fuelType];
 
   return (
@@ -48,10 +93,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
               {[p.county, p.state].filter(Boolean).join(", ") || "Location not specified"}
             </p>
           </div>
-          <ShareButtons
-            url={`https://waitingforpower.com/project/${p.slug}`}
-            text={`${p.name} has been waiting${p.yearsWaiting != null ? ` ${p.yearsWaiting.toFixed(1)} years` : ""} for approval. Tracked on WaitingForPower.`}
-          />
+          <ShareButtons url={`https://waitingforpower.com/project/${p.slug}`} text={shareText(p)} />
         </div>
       </div>
 

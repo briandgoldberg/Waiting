@@ -6,11 +6,30 @@ import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
+// Facebook's share dialog doesn't take a text param the way Twitter's
+// intent link does — it scrapes the target URL's Open Graph tags for what
+// to show, so good Facebook share text is an openGraph metadata problem,
+// not something ShareButtons can control. See src/components/ShareButtons.tsx.
+const TITLE = "WaitingForPower — Energy Project Tracker";
+const DESCRIPTION =
+  "Tracking proposed U.S. energy projects — generation, transmission, storage, LNG, and pipelines, every fuel type — and how long each has been waiting for approval, and why.";
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://waitingforpower.com"),
-  title: "WaitingForPower — Energy Project Tracker",
-  description:
-    "Tracking proposed U.S. energy projects — generation, transmission, storage, LNG, and pipelines, every fuel type — and how long each has been waiting for approval, and why.",
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: "https://waitingforpower.com",
+    siteName: "WaitingForPower",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
