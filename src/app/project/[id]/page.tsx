@@ -88,14 +88,6 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           </div>
         )}
         <p className="text-sm mt-4 border-t border-[var(--border)] pt-4">{p.causeDetail}</p>
-        {p.causeSlugs.length > 0 && (
-          <Link
-            href="/policies"
-            className="text-sm font-medium text-[var(--accent)] underline mt-4 inline-block"
-          >
-            See the policies that would fix this →
-          </Link>
-        )}
       </section>
 
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">

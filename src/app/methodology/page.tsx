@@ -131,14 +131,67 @@ export default function MethodologyPage() {
 
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">
         <h2 className="text-lg font-semibold mb-2">Data &amp; sourcing</h2>
-        <p className="text-sm">
-          v1&rsquo;s seed data is a small, hand-researched set of real, individually-cited projects —
-          not a live pull from the automated ingestion pipeline (see{" "}
-          <code>src/lib/ingest/</code> in the repo), which needs API keys and a downloaded LBNL
-          workbook this environment didn&rsquo;t have. Every seeded project links to the public
-          reporting or primary source it was checked against. See the repo&rsquo;s README for the full
-          list of open questions — including cross-source project identity matching and data
-          source terms of use — flagged rather than silently guessed at.
+        <p className="text-sm mb-4">
+          Every project on this site traces back to one of the sources below — each one links out
+          to the original public filing or reporting, not just this site&rsquo;s own summary.
+        </p>
+        <ul className="text-sm flex flex-col gap-3">
+          <li>
+            <strong>Hand-curated, individually cited projects.</strong> A small set of
+            high-profile transmission, LNG, offshore wind, nuclear, solar, and pipeline projects,
+            each checked against public dockets, court filings, and reporting (FERC, BOEM, EPA,
+            trade press). These are the most detailed entries on the site, with full milestone
+            timelines.
+          </li>
+          <li>
+            <strong>
+              <a
+                href="https://www.eia.gov/electricity/data/eia860m/"
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
+                EIA-860M
+              </a>{" "}
+              &ldquo;Planned&rdquo; generator inventory.
+            </strong>{" "}
+            U.S. Energy Information Administration, published monthly. The backbone list of
+            proposed U.S. generation and storage capacity — location, capacity, technology, and
+            status for every planned generator above a capacity threshold.
+          </li>
+          <li>
+            <strong>
+              <a
+                href="https://permits.performance.gov/"
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
+                Federal Permitting Dashboard
+              </a>
+            </strong>{" "}
+            — FAST-41 covered major infrastructure projects, tracked by agency and status.
+            Integration planned, not yet live on the site.
+          </li>
+          <li>
+            <strong>
+              <a href="https://emp.lbl.gov/queues" target="_blank" rel="noreferrer" className="underline">
+                LBNL &ldquo;Queued Up&rdquo;
+              </a>
+            </strong>{" "}
+            — the most comprehensive U.S. interconnection-queue dataset, aggregated annually
+            across 50+ grid operators. Integration planned, not yet live on the site.
+          </li>
+          <li>
+            <strong>FERC eLibrary</strong> — docket search for LNG and hydropower licensing
+            proceedings, used selectively to hand-curate individual projects rather than as a bulk
+            source.
+          </li>
+        </ul>
+        <p className="text-sm mt-4 pt-4 border-t border-[var(--border)]">
+          Our data and sources are always growing — check back soon. See the repo&rsquo;s README
+          for the full list of open questions, including cross-source project identity matching
+          and data source terms of use, flagged rather than silently guessed at.
         </p>
       </section>
     </div>
