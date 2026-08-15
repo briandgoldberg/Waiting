@@ -99,27 +99,24 @@ export default function MethodologyPage() {
         <p className="text-sm">
           Total capacity, total clean energy capacity, and total investment waiting sum only over
           projects in the <em>current filtered set</em> — they update live as you filter. Entries
-          flagged <code>isAggregateExample</code> (currently: the PJM regional
-          interconnection-queue entry) are always excluded from these totals, since they represent
-          a regional statistic rather than one physical project and would double-count against
-          individual projects also shown.
+          flagged <code>isAggregateExample</code> are always excluded from these totals, since
+          they&rsquo;d represent a regional statistic (e.g. an entire ISO interconnection queue)
+          rather than one physical project and would double-count against individual projects also
+          shown. No currently-ingested source produces one of these, but the exclusion stays in
+          place for whenever one does.
         </p>
       </section>
 
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">
         <h2 className="text-lg font-semibold mb-2">Data &amp; sourcing</h2>
         <p className="text-sm mb-4">
-          Every project on this site traces back to one of the sources below — each one links out
-          to the original public filing or reporting, not just this site&rsquo;s own summary.
+          Every project on this site comes from one of the public data sources below, refreshed on
+          a daily automated schedule — not a one-off, hand-picked list. Each source links out to
+          the original public filing or reporting, not just this site&rsquo;s own summary. We
+          intentionally stick to sources we can keep current automatically; see the repo&rsquo;s
+          README if you&rsquo;re curious why.
         </p>
         <ul className="text-sm flex flex-col gap-3">
-          <li>
-            <strong>Hand-curated, individually cited projects.</strong> A small set of
-            high-profile transmission, LNG, offshore wind, nuclear, solar, and pipeline projects,
-            each checked against public dockets, court filings, and reporting (FERC, BOEM, EPA,
-            trade press). These are the most detailed entries on the site, with full milestone
-            timelines.
-          </li>
           <li>
             <strong>
               <a
@@ -134,7 +131,25 @@ export default function MethodologyPage() {
             </strong>{" "}
             U.S. Energy Information Administration, published monthly. The backbone list of
             proposed U.S. generation and storage capacity — location, capacity, technology, and
-            status for every planned generator above a capacity threshold.
+            status for every planned generator above a 250 MW capacity floor. We exclude
+            generators already reported under construction, since this site tracks projects still
+            waiting for approval, not ones that have already cleared that hurdle.
+          </li>
+          <li>
+            <strong>
+              <a
+                href="https://www.permits.performance.gov/"
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
+                Federal Permitting Dashboard
+              </a>
+            </strong>{" "}
+            (FAST-41 covered projects). Permitting Council data on major energy generation,
+            transmission, storage, and pipeline projects undergoing federal environmental review —
+            including which federal agency is in the lead. We exclude projects already marked
+            Complete or Cancelled.
           </li>
         </ul>
         <p className="text-sm mt-4 pt-4 border-t border-[var(--border)]">
