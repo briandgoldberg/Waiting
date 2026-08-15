@@ -20,7 +20,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchAndIngestCurrentWorkbook } from "@/lib/ingest/eia860mPlanned";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {

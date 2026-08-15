@@ -266,27 +266,46 @@ const MONTH_NAMES = [
 
 export async function findCurrentWorkbookUrl(monthsToCheck = 6): Promise<string> {
   const now = new Date();
+  const candidates: { monthsBack: number; url: string }[] = [];
   for (let i = 0; i < monthsToCheck; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const month = MONTH_NAMES[d.getMonth()];
     const year = d.getFullYear();
     for (const prefix of ["xls", "archive/xls"]) {
-      const url = `https://www.eia.gov/electricity/data/eia860m/${prefix}/${month}_generator${year}.xlsx`;
-      try {
-        const res = await fetch(url);
-        const contentType = res.headers.get("content-type") ?? "";
-        if (res.ok && /spreadsheet/i.test(contentType)) {
-          return url;
-        }
-      } catch {
-        // network hiccup on this candidate — try the next one
-      }
+      candidates.push({
+        monthsBack: i,
+        url: `https://www.eia.gov/electricity/data/eia860m/${prefix}/${month}_generator${year}.xlsx`,
+      });
     }
   }
-  throw new Error(
-    `Could not find a real EIA-860M workbook in the last ${monthsToCheck} months — ` +
-      `EIA may have changed their URL naming convention. Check https://www.eia.gov/electricity/data/eia860m/ manually.`,
+
+  // Check every candidate concurrently (they're small HEAD-equivalent GETs —
+  // see module header on why HEAD itself doesn't work against eia.gov)
+  // instead of walking through them one at a time — the sequential version
+  // could cost several seconds of pure round-trip time before ever reaching
+  // the real 14MB download, eating into the serverless time budget for no
+  // reason. Prefer the most recent month among whichever candidates turn
+  // out real.
+  const results = await Promise.all(
+    candidates.map(async (c) => {
+      try {
+        const res = await fetch(c.url);
+        const contentType = res.headers.get("content-type") ?? "";
+        return { ...c, ok: res.ok && /spreadsheet/i.test(contentType) };
+      } catch {
+        return { ...c, ok: false };
+      }
+    }),
   );
+
+  const real = results.filter((r) => r.ok).sort((a, b) => a.monthsBack - b.monthsBack);
+  if (real.length === 0) {
+    throw new Error(
+      `Could not find a real EIA-860M workbook in the last ${monthsToCheck} months — ` +
+        `EIA may have changed their URL naming convention. Check https://www.eia.gov/electricity/data/eia860m/ manually.`,
+    );
+  }
+  return real[0].url;
 }
 
 export async function fetchAndIngestCurrentWorkbook(minCapacityMw = MIN_CAPACITY_MW): Promise<IngestSummary> {

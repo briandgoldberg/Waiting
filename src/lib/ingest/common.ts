@@ -169,7 +169,7 @@ export async function upsertNormalizedProject(p: NormalizedProject) {
  */
 export async function upsertNormalizedProjects(
   projects: NormalizedProject[],
-  concurrency = 20,
+  concurrency = 40,
 ): Promise<{ upserted: number; errors: { matchKey: string; message: string }[] }> {
   let upserted = 0;
   const errors: { matchKey: string; message: string }[] = [];
