@@ -1,10 +1,8 @@
 "use client";
 
-import { CAUSE_CATEGORIES } from "@/lib/data/causeCategories";
-import { FUEL_TYPES, PROJECT_STAGES, PROJECT_TYPES } from "@/lib/data/taxonomies";
+import { FUEL_TYPES, PROJECT_TYPES } from "@/lib/data/taxonomies";
 import type { FilterState } from "@/lib/filters";
-import type { CauseSlug } from "@/lib/data/causeCategories";
-import type { FuelType, ProjectStage, ProjectType } from "@/lib/data/taxonomies";
+import type { FuelType, ProjectType } from "@/lib/data/taxonomies";
 
 function toggle<T>(arr: T[], value: T): T[] {
   return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
@@ -99,39 +97,6 @@ export function FilterPanel({
             >
               {f.label}
             </Pill>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="Current stage">
-        <div className="flex flex-wrap gap-1.5">
-          {PROJECT_STAGES.map((s) => (
-            <Pill
-              key={s.value}
-              active={filters.stages.includes(s.value)}
-              onClick={() => onChange({ ...filters, stages: toggle<ProjectStage>(filters.stages, s.value) })}
-            >
-              {s.label}
-            </Pill>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="Cause">
-        <div className="flex flex-col gap-1.5">
-          {CAUSE_CATEGORIES.map((c) => (
-            <label key={c.slug} className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={filters.causes.includes(c.slug)}
-                onChange={() => onChange({ ...filters, causes: toggle<CauseSlug>(filters.causes, c.slug) })}
-              />
-              <span
-                className="inline-block h-2.5 w-2.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: c.color }}
-              />
-              {c.label}
-            </label>
           ))}
         </div>
       </Section>

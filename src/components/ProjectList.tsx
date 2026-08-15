@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { ProjectDTO } from "@/lib/types";
-import { CauseBadge } from "@/components/CauseBadge";
 import { formatCapacity } from "@/lib/data/taxonomies";
 
 type SortKey = "name" | "location" | "daysWaiting" | "capacity" | "stage";
@@ -115,7 +114,6 @@ export function ProjectList({ projects }: { projects: ProjectDTO[] }) {
                   {c.label} {sortKey === c.key && (sortDir === "asc" ? "↑" : "↓")}
                 </th>
               ))}
-              <th className="px-4 py-2 whitespace-nowrap">Cause</th>
             </tr>
           </thead>
           <tbody>
@@ -137,15 +135,6 @@ export function ProjectList({ projects }: { projects: ProjectDTO[] }) {
                   {formatCapacity(p.capacityValue, p.capacityUnit)}
                 </td>
                 <td className="px-4 py-2.5 whitespace-nowrap">{p.currentStage.replace(/_/g, " ")}</td>
-                <td className="px-4 py-2.5">
-                  <div className="flex flex-wrap gap-1">
-                    {p.causeSlugs.length > 0 ? (
-                      p.causeSlugs.map((c) => <CauseBadge key={c} slug={c} />)
-                    ) : (
-                      <span className="text-xs text-[var(--muted)]">not yet determined</span>
-                    )}
-                  </div>
-                </td>
               </tr>
             ))}
           </tbody>
