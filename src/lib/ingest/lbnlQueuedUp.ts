@@ -31,7 +31,7 @@
 //
 // IDENTITY: the codebook explicitly says q_id alone isn't unique — combine
 // with `entity`. matchKey below does that. Checked for collisions within the
-// filtered set actually ingested (active, >=100MW): zero duplicates as of
+// filtered set actually ingested (active, >=250MW): zero duplicates as of
 // the 2026 edition, though ~38k un-filtered rows contain 135 (from
 // long-since-operational/withdrawn duplicate entries this module never
 // ingests anyway).
@@ -43,10 +43,10 @@
 //     withdrawn/operational aren't "waiting" on anything anymore, and
 //     "suspended" was deliberately excluded too (stricter than the
 //     Permitting Dashboard's treatment of "Paused" as still-waiting).
-//   - mw_1 >= MIN_CAPACITY_MW (100): keeps this to utility-scale requests;
-//     lower than the 250 MW floor used for EIA-860M/Permitting Dashboard
-//     since interconnection requests for storage/hybrid projects often run
-//     smaller than standalone generation plants of comparable significance.
+//   - mw_1 >= MIN_CAPACITY_MW (250): matches the site-wide 250 MW capacity
+//     floor also used by EIA-860M (see that module) — a deliberate,
+//     documented curation decision, not a technical limit, to keep every
+//     source consistent about what counts as a tracked "project."
 //
 // GEOCODING: this dataset publishes county + state + a 5-digit FIPS code but
 // no lat/lon or street address (same limitation already documented for the
@@ -78,7 +78,7 @@
 // no manual step. Run `npx tsx src/lib/ingest/lbnlQueuedUp.ts` (or
 // `npm run ingest:lbnl`) yourself for a manual pull; pass a local file path
 // as argv[1] to parse an already-downloaded workbook instead of fetching.
-export const MIN_CAPACITY_MW = 100;
+export const MIN_CAPACITY_MW = 250;
 
 import { readFileSync } from "node:fs";
 import * as XLSX from "xlsx";

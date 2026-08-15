@@ -28,7 +28,8 @@ export function StatsHeader({
             Every project matching your current filters, except regional-aggregate entries (like a
             statewide or ISO-wide statistic standing in for many projects) — those would
             double-count against the individual projects also shown, so they&rsquo;re excluded from
-            this count.
+            this count. Every source with a published capacity figure is held to a 250 MW floor —
+            this site tracks utility-scale projects, not small/distributed ones.
           </p>
           {ex && (
             <ExampleNote>

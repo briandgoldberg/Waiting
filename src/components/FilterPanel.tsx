@@ -103,7 +103,7 @@ export function FilterPanel({
 
       <Section title="Capacity">
         <div className="flex flex-wrap gap-1.5">
-          {[250, 500, 1000].map((n) => (
+          {[500, 1000, 2000].map((n) => (
             <Pill
               key={n}
               active={filters.minCapacity === n}
