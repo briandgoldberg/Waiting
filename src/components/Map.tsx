@@ -211,11 +211,25 @@ export function Map({ projects }: { projects: ProjectDTO[] }) {
         map.getCanvas().style.cursor = "";
       });
 
-      // If the projects prop changed while we were still waiting for style
-      // readiness, apply the latest data now instead of the possibly-stale
-      // snapshot captured when trySetUpProjectLayers first ran.
+      // Reported in production: pins are invisible on first load, but
+      // selecting filters (which calls source.setData() again via the
+      // effect below) makes some appear. That means the pipeline itself
+      // works — the very first paint after addSource+addLayer just doesn't
+      // "take" reliably (a known class of GL-source timing issue: the
+      // browser hasn't had a real paint tick yet when the initial data is
+      // set, all in one synchronous block). Rather than require a user
+      // interaction to fix it, replay setData a few times on a short delay
+      // schedule — cheap, idempotent, and each call is what empirically
+      // fixes it when a filter change triggers it manually.
       const source = map.getSource("projects") as GeoJSONSource;
-      source.setData(toFeatureCollection(projectsRef.current) as GeoJSON.FeatureCollection);
+      const poke = () => {
+        if (cancelled) return;
+        source.setData(toFeatureCollection(projectsRef.current) as GeoJSON.FeatureCollection);
+        map.resize();
+        map.triggerRepaint();
+      };
+      poke();
+      [50, 250, 750, 2000].forEach((delay) => setTimeout(poke, delay));
     }
 
     // Race every plausible readiness signal — whichever comes first wins,
