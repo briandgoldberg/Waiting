@@ -23,7 +23,7 @@ and "what we're arguing should change" aren't the same object.
 
 ```bash
 npm install
-cp .env.example .env      # set DATABASE_URL to your own Postgres instance, plus ADMIN_PASSWORD / ADMIN_SESSION_SECRET
+cp .env.example .env      # set DATABASE_URL to your own Postgres instance
 npx prisma migrate deploy # applies the committed migrations to your database
 npx tsx prisma/seed.ts    # loads the v1 curated seed set (see below)
 npm run dev
@@ -34,9 +34,6 @@ bundled local database file. The deployed app and local dev both point at
 the same hosted Postgres instance for this project (see "Architecture"
 below for why); for your own fork, any Postgres works (Neon, Supabase,
 Vercel/Prisma Postgres, RDS, local `postgres` via Docker, etc.).
-
-Visit `/admin` and sign in with `ADMIN_USERNAME` / `ADMIN_PASSWORD` from
-`.env` to review submissions (see "User submissions" below).
 
 ## Data & sourcing
 
@@ -140,19 +137,16 @@ per-data-source version of this list.
   for both local dev and production; see open question #8 for why this
   project moved off SQLite.
 - **MapLibre GL JS** for the map — a free CARTO Voyager vector basemap (no
-  API token required), custom circle-layer markers sized by capacity and
-  colored by primary cause category, with native GeoJSON clustering.
+  API token required), with projects rendered as plain DOM markers
+  (`maplibregl.Marker`) sized by capacity, colored uniformly. An earlier
+  version used a clustered GeoJSON source rendered as GL circle layers, but
+  that pipeline (worker-built tiles + GL repaint) wasn't reliably rendering
+  in production; DOM markers sidestep it entirely at the cost of native
+  clustering — see git history on `src/components/Map.tsx`.
 - Filters live as React state in `src/components/Explorer.tsx` and drive
   both the map and the sortable list/table view from one source of truth
   (`src/lib/filters.ts`), with live-updating aggregate stats
   (`src/lib/stats.ts`).
-- **Admin auth** is a single shared login (`ADMIN_USERNAME`/`ADMIN_PASSWORD`
-  env vars) with an HMAC-signed session cookie — no user-account system, per
-  the v1 spec. See `src/lib/admin/auth.ts`.
-- User submissions never auto-publish: `POST /api/submissions` writes to a
-  `Submission` table with `status: "pending"`; only an authenticated admin
-  approving via `/admin` copies it into a real `Project` row (as
-  `verificationStatus: "user_submitted_verified"`).
 
 ## Project schema
 

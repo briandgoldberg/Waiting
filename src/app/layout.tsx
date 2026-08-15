@@ -46,19 +46,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               Waiting tracks U.S. energy projects of every fuel type — bipartisan, structural,
               sourced. <Link href="/methodology" className="underline">Methodology &amp; sources</Link>.
             </p>
-            <div className="flex items-center gap-3">
-              <a
-                href="https://github.com/briandgoldberg/Waiting"
-                target="_blank"
-                rel="noreferrer"
-                className="underline"
-              >
-                Source on GitHub
-              </a>
-              <Link href="/admin" className="underline">
-                Admin
-              </Link>
-            </div>
+            <a
+              href="https://github.com/briandgoldberg/Waiting"
+              target="_blank"
+              rel="noreferrer"
+              className="underline"
+            >
+              Source on GitHub
+            </a>
           </div>
         </footer>
       </body>
