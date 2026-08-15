@@ -29,7 +29,11 @@ export function StatsHeader({
             statewide or ISO-wide statistic standing in for many projects) — those would
             double-count against the individual projects also shown, so they&rsquo;re excluded from
             this count. Every source with a published capacity figure is held to a 250 MW floor —
-            this site tracks utility-scale projects, not small/distributed ones.
+            this site tracks utility-scale projects, not small/distributed ones. A handful of
+            projects don&rsquo;t have a published capacity at all (the Federal Permitting
+            Dashboard doesn&rsquo;t report one); those are still counted rather than assumed
+            small, since FAST-41 &ldquo;covered project&rdquo; status is itself generally reserved
+            for large infrastructure.
           </p>
           {ex && (
             <ExampleNote>

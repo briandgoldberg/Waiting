@@ -46,7 +46,9 @@
 //   - mw_1 >= MIN_CAPACITY_MW (250): matches the site-wide 250 MW capacity
 //     floor also used by EIA-860M (see that module) — a deliberate,
 //     documented curation decision, not a technical limit, to keep every
-//     source consistent about what counts as a tracked "project."
+//     source consistent about what counts as a tracked "project." Only
+//     rows with a *known* mw_1 below this floor are dropped — a missing
+//     value is kept, not treated as evidence of a small project.
 //
 // GEOCODING: this dataset publishes county + state + a 5-digit FIPS code but
 // no lat/lon or street address (same limitation already documented for the
@@ -339,7 +341,10 @@ export async function ingestLbnlQueuedUpBuffer(
       continue;
     }
     const capacity = Number(row[fieldMap.capacityMw!] ?? NaN);
-    if (!Number.isFinite(capacity) || capacity < minCapacityMw) {
+    // Only drop rows *clearly* below the floor — see the matching comment
+    // in eia860mPlanned.ts. An unpublished/unparseable mw_1 isn't evidence
+    // the project is small.
+    if (Number.isFinite(capacity) && capacity < minCapacityMw) {
       skippedBelowFloor += 1;
       continue;
     }

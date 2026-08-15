@@ -34,7 +34,11 @@
 // individually-cited seed projects already in the database. MIN_CAPACITY_MW
 // below is a deliberate, documented judgment call, not a technical limit —
 // raise or lower it and re-run any time; upserts are idempotent by
-// plant+generator ID either way.
+// plant+generator ID either way. Only rows with a *known* capacity below
+// this floor are dropped — a missing/unparseable capacity figure isn't
+// evidence a project is small, so it's kept rather than excluded (per
+// explicit product decision, matching how the Permitting Dashboard, which
+// never publishes capacity at all, was never floor-filtered either).
 export const MIN_CAPACITY_MW = 250;
 
 import { readFileSync } from "node:fs";
@@ -241,7 +245,13 @@ export async function ingestEia860mPlannedBuffer(
 
   for (const row of rows) {
     const capacity = Number(row[fieldMap.nameplateCapacityMw!] ?? NaN);
-    if (!Number.isFinite(capacity) || capacity < minCapacityMw) {
+    // Only drop rows *clearly* below the floor — an unpublished/unparseable
+    // capacity figure isn't evidence the project is small, so it's kept
+    // rather than treated as failing the floor. Per explicit product
+    // decision: the same reasoning already applied to the Permitting
+    // Dashboard, which never publishes capacity at all and was never
+    // floor-filtered for that reason.
+    if (Number.isFinite(capacity) && capacity < minCapacityMw) {
       skippedBelowFloor += 1;
       continue;
     }
