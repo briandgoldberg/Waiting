@@ -1,5 +1,6 @@
 import type { AggregateStats } from "@/lib/types";
 import type { ProjectDTO } from "@/lib/types";
+import { ZERO_CARBON_FUELS } from "@/lib/data/taxonomies";
 
 // Aggregate stats deliberately exclude `isAggregateExample` projects (like
 // the PJM regional aggregate in the seed set) — mixing a regional aggregate
@@ -13,30 +14,30 @@ export function computeAggregateStats(projects: ProjectDTO[]): AggregateStats {
     return sum + p.capacityValue;
   }, 0);
 
-  let totalCostOfDelayUsd = 0;
-  let costOfDelayCoverageCount = 0;
+  let totalInvestmentWaitingUsd = 0;
+  let investmentWaitingCoverageCount = 0;
   for (const p of realProjects) {
-    if (p.costOfDelay.applicable && p.costOfDelay.estimatedUsd != null) {
-      totalCostOfDelayUsd += p.costOfDelay.estimatedUsd;
-      costOfDelayCoverageCount += 1;
+    if (p.investmentWaiting.applicable && p.investmentWaiting.estimatedUsd != null) {
+      totalInvestmentWaitingUsd += p.investmentWaiting.estimatedUsd;
+      investmentWaitingCoverageCount += 1;
     }
   }
 
-  let totalTonnesCo2Avoided = 0;
-  let co2AvoidedCoverageCount = 0;
+  let totalCleanCapacityMw = 0;
+  let cleanCapacityProjectCount = 0;
   for (const p of realProjects) {
-    if (p.co2Avoided.applicable && p.co2Avoided.estimatedTonnesCo2Avoided != null) {
-      totalTonnesCo2Avoided += p.co2Avoided.estimatedTonnesCo2Avoided;
-      co2AvoidedCoverageCount += 1;
+    if (ZERO_CARBON_FUELS.includes(p.fuelType) && p.capacityUnit === "MW" && p.capacityValue != null) {
+      totalCleanCapacityMw += p.capacityValue;
+      cleanCapacityProjectCount += 1;
     }
   }
 
   return {
     totalProjects: realProjects.length,
     totalCapacityMw,
-    totalCostOfDelayUsd,
-    costOfDelayCoverageCount,
-    totalTonnesCo2Avoided,
-    co2AvoidedCoverageCount,
+    totalInvestmentWaitingUsd,
+    investmentWaitingCoverageCount,
+    totalCleanCapacityMw,
+    cleanCapacityProjectCount,
   };
 }

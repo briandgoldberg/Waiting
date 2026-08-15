@@ -1,4 +1,4 @@
-# Waiting — an Energy Project Tracker
+# WaitingForPower — an Energy Project Tracker
 
 Open source, MIT licensed — see [`LICENSE`](LICENSE). Contributions,
 forks, and issues welcome.
@@ -70,7 +70,7 @@ statistics, included so the interconnection-queue-backlog cause category
 has a real, cited data point pending full ingestion of LBNL's
 project-level dataset. It's flagged `isAggregateExample: true`, shown with
 a visible label everywhere it appears, and **excluded from all aggregate
-headline stats** (total capacity, CO2 avoided, energy bill impact) to avoid
+headline stats** (total capacity, clean energy capacity, investment waiting) to avoid
 double-counting against individual projects. See
 [`/methodology`](src/app/methodology/page.tsx) in the running app.
 
@@ -112,14 +112,11 @@ per-data-source version of this list.
    and LBNL's Queued Up asks for citation in a way that reads like an
    academic norm, not a formal license. Get an explicit answer per source
    before redistributing bulk data via this site's own API at scale.
-7. **Cost-of-delay (energy bill impact) only covers generation/storage
-   projects with MW capacity and a published capacity factor**, and
-   CO2-avoided only covers the subset of those that are zero-direct-emission
-   (solar, wind, nuclear, hydro, geothermal). Transmission, pipeline, LNG,
-   and (for CO2 specifically) gas projects show "not estimated" rather than
-   a number built on assumptions this project couldn't defend as well —
-   see `src/lib/calc/costOfDelay.ts`, `src/lib/calc/co2Avoided.ts`, and
-   `/methodology`.
+7. **Investment-waiting only covers generation/storage projects with MW
+   capacity and a published construction-cost figure.** Transmission,
+   pipeline, and LNG projects show "not estimated" rather than a number
+   built on assumptions this project couldn't defend as well — see
+   `src/lib/calc/investmentWaiting.ts` and `/methodology`.
 8. **SQLite + serverless deployment (resolved).** v1 originally shipped
    with a committed SQLite file for zero-config local dev. On the first
    Vercel deploy this broke completely: Next.js's serverless file tracer

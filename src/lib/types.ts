@@ -47,27 +47,19 @@ export interface ProjectDTO {
   // computed
   daysWaiting: number | null;
   yearsWaiting: number | null;
-  costOfDelay: {
+  investmentWaiting: {
     applicable: boolean;
     reason?: string;
-    estimatedMwhUndelivered?: number;
     estimatedUsd?: number;
-    capacityFactor?: number;
-  };
-  co2Avoided: {
-    applicable: boolean;
-    reason?: string;
-    estimatedMwhDelayed?: number;
-    estimatedTonnesCo2Avoided?: number;
-    capacityFactor?: number;
+    costPerKw?: number;
   };
 }
 
 export interface AggregateStats {
   totalProjects: number;
   totalCapacityMw: number;
-  totalCostOfDelayUsd: number;
-  costOfDelayCoverageCount: number; // how many of totalProjects have an applicable cost-of-delay estimate
-  totalTonnesCo2Avoided: number;
-  co2AvoidedCoverageCount: number; // how many of totalProjects have an applicable CO2-avoided estimate
+  totalInvestmentWaitingUsd: number;
+  investmentWaitingCoverageCount: number; // how many of totalProjects have an applicable estimate
+  totalCleanCapacityMw: number;
+  cleanCapacityProjectCount: number; // how many of totalProjects are zero-carbon generation with MW capacity
 }

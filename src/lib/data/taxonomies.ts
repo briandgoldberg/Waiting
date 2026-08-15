@@ -52,6 +52,18 @@ export const FUEL_TYPE_BY_VALUE: Record<FuelType, { label: string; color: string
     { label: string; color: string }
   >;
 
+// Technologies with essentially zero direct generation emissions. Used for
+// the "clean energy capacity waiting" headline stat — a simple MW sum, not
+// an emissions estimate.
+export const ZERO_CARBON_FUELS: FuelType[] = [
+  "solar",
+  "wind_onshore",
+  "wind_offshore",
+  "nuclear",
+  "hydro",
+  "geothermal",
+];
+
 export type ProjectStage =
   | "interconnection_study"
   | "environmental_review"

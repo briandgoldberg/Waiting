@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import dynamic from "next/dynamic";
 import type { ProjectDTO } from "@/lib/types";
 import { DEFAULT_FILTERS, buildChips, hasActiveFilters, matchesFilters, type FilterState } from "@/lib/filters";
@@ -42,27 +41,18 @@ export function Explorer({ projects }: { projects: ProjectDTO[] }) {
   // the four tooltips falls back to "not estimated"; degrade gracefully.
   const exampleProject = useMemo(() => {
     const real = filtered.filter((p) => !p.isAggregateExample);
-    return (
-      real.find((p) => p.costOfDelay.applicable && p.co2Avoided.applicable) ??
-      real.find((p) => p.costOfDelay.applicable) ??
-      real[0] ??
-      null
-    );
+    return real.find((p) => p.investmentWaiting.applicable) ?? real[0] ?? null;
   }, [filtered]);
 
   return (
     <div className="mx-auto max-w-7xl w-full px-4 sm:px-6 py-5 flex flex-col gap-4 flex-1">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
-          Every fuel type. The same bottlenecks.
+          America needs power. It&rsquo;s stuck waiting.
         </h1>
         <p className="text-sm text-[var(--muted)] mt-1 max-w-3xl">
-          Solar, wind, storage, gas, nuclear, hydro, LNG, pipelines, and transmission — tracked
-          side by side, with every delay mapped to one of seven named causes. See the{" "}
-          <Link href="/policies" className="underline">
-            policies that would fix them
-          </Link>
-          .
+          Cheaper bills. Cleaner air. Power for AI. Entrepreneurs are ready to build it — every
+          fuel type, every technology. Below are all the projects just waiting on a yes.
         </p>
       </div>
 

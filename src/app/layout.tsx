@@ -6,7 +6,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "Waiting — Energy Project Tracker",
+  title: "WaitingForPower — Energy Project Tracker",
   description:
     "Tracking proposed U.S. energy projects — generation, transmission, storage, LNG, and pipelines, every fuel type — and how long each has been waiting for approval, and why.",
 };
@@ -18,7 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <header className="border-b border-[var(--border)] bg-[var(--panel)]">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
             <Link href="/" className="flex items-baseline gap-2">
-              <span className="text-lg font-bold tracking-tight">Waiting</span>
+              <span className="text-lg font-bold tracking-tight">WaitingForPower</span>
               <span className="text-xs text-[var(--muted)] hidden sm:inline">
                 an Energy Project Tracker
               </span>
@@ -43,11 +43,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <footer className="border-t border-[var(--border)] bg-[var(--panel)] text-xs text-[var(--muted)]">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-2">
             <p>
-              Waiting tracks U.S. energy projects of every fuel type — bipartisan, structural,
-              sourced. <Link href="/methodology" className="underline">Methodology &amp; sources</Link>.
+              WaitingForPower tracks U.S. energy projects of every fuel type — bipartisan,
+              structural, sourced.{" "}
+              <Link href="/methodology" className="underline">Methodology &amp; sources</Link>.
             </p>
             <a
-              href="https://github.com/briandgoldberg/Waiting"
+              href="https://github.com/briandgoldberg/WaitingForPower"
               target="_blank"
               rel="noreferrer"
               className="underline"

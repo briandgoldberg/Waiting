@@ -5,8 +5,7 @@ import { serializeProject } from "@/lib/serialize";
 import { CauseBadge } from "@/components/CauseBadge";
 import { getCauseCategory } from "@/lib/data/causeCategories";
 import { FUEL_TYPE_BY_VALUE, formatCapacity } from "@/lib/data/taxonomies";
-import { formatUsd } from "@/lib/calc/costOfDelay";
-import { formatTonnesCo2 } from "@/lib/calc/co2Avoided";
+import { formatUsd } from "@/lib/calc/investmentWaiting";
 
 export const dynamic = "force-dynamic";
 
@@ -85,16 +84,15 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
       </section>
 
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">
-        <h2 className="text-lg font-semibold mb-3">Estimated energy bill impact</h2>
-        {p.costOfDelay.applicable ? (
+        <h2 className="text-lg font-semibold mb-3">Estimated investment waiting</h2>
+        {p.investmentWaiting.applicable ? (
           <>
-            <div className="text-3xl font-bold tabular-nums">{formatUsd(p.costOfDelay.estimatedUsd!)}</div>
+            <div className="text-3xl font-bold tabular-nums">{formatUsd(p.investmentWaiting.estimatedUsd!)}</div>
             <p className="text-xs text-[var(--muted)] mt-2">
-              ≈ {Math.round(p.costOfDelay.estimatedMwhUndelivered ?? 0).toLocaleString("en-US")} MWh of
-              undelivered energy, using a {(p.costOfDelay.capacityFactor! * 100).toFixed(0)}% typical
-              capacity factor and a $35/MWh assumed wholesale price — a proxy for the downward
-              pressure on electricity costs this project's power would have provided, not a
-              literal bill-line total.{" "}
+              ≈ {Math.round((p.capacityValue ?? 0) * 1000).toLocaleString("en-US")} kW × $
+              {p.investmentWaiting.costPerKw?.toLocaleString("en-US")}/kW typical overnight
+              construction cost (EIA) — the dollar value of the power plant itself sitting in
+              permitting limbo, not a bill estimate.{" "}
               <Link href="/methodology" className="underline">
                 Full methodology
               </Link>
@@ -102,30 +100,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
             </p>
           </>
         ) : (
-          <p className="text-sm text-[var(--muted)]">Not estimated: {p.costOfDelay.reason}</p>
-        )}
-      </section>
-
-      <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">
-        <h2 className="text-lg font-semibold mb-3">CO2 avoided if online</h2>
-        {p.co2Avoided.applicable ? (
-          <>
-            <div className="text-3xl font-bold tabular-nums">
-              {formatTonnesCo2(p.co2Avoided.estimatedTonnesCo2Avoided!)}
-            </div>
-            <p className="text-xs text-[var(--muted)] mt-2">
-              ≈ {Math.round(p.co2Avoided.estimatedMwhDelayed ?? 0).toLocaleString("en-US")} MWh of
-              zero-carbon generation delayed, using a{" "}
-              {(p.co2Avoided.capacityFactor! * 100).toFixed(0)}% typical capacity factor and the
-              U.S. national average grid emissions rate (~0.81 lb CO2/kWh, EIA).{" "}
-              <Link href="/methodology" className="underline">
-                Full methodology
-              </Link>
-              .
-            </p>
-          </>
-        ) : (
-          <p className="text-sm text-[var(--muted)]">Not estimated: {p.co2Avoided.reason}</p>
+          <p className="text-sm text-[var(--muted)]">Not estimated: {p.investmentWaiting.reason}</p>
         )}
       </section>
 
