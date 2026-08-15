@@ -3,29 +3,18 @@ import { POLICIES } from "@/lib/data/policies";
 
 export default function PoliciesPage() {
   return (
-    <div className="mx-auto max-w-3xl w-full px-4 sm:px-6 py-6 flex flex-col gap-8">
+    <div className="mx-auto max-w-3xl w-full px-4 sm:px-6 py-6 flex flex-col gap-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Policies to support</h1>
-        <p className="text-base text-[var(--muted)] mt-2 max-w-2xl">
-          Six specific, bipartisan reform proposals — one for each structural bottleneck the data
-          on this site tracks. None of these is presented as a silver bullet: each has real
-          trade-offs, laid out below alongside the case for it.
+        <p className="text-sm text-[var(--muted)] mt-2 max-w-2xl">
+          Six bipartisan fixes, one per bottleneck. No silver bullets — real trade-offs included.
         </p>
-        <p className="text-xs text-[var(--muted)] mt-3 max-w-2xl">
-          Arguments here are informed by permitting-reform positions publicly advocated by{" "}
-          <a
-            href="https://citizensclimatelobby.org/"
-            target="_blank"
-            rel="noreferrer"
-            className="underline"
-          >
+        <p className="text-xs text-[var(--muted)] mt-2 max-w-2xl">
+          Informed by{" "}
+          <a href="https://citizensclimatelobby.org/" target="_blank" rel="noreferrer" className="underline">
             Citizens&rsquo; Climate Lobby
           </a>{" "}
-          and other bipartisan reform groups, rewritten in this site&rsquo;s own words and framed
-          with weaknesses included, not just the case for. Bill links point to Congress.gov topic
-          searches rather than pinned bill numbers where a specific bill wasn&rsquo;t confirmed
-          still pending — legislation is reintroduced under a new number every two-year Congress,
-          so a search stays current where a fixed citation would go stale.
+          and other bipartisan reform advocates, in this site&rsquo;s own words.
         </p>
       </div>
 
@@ -48,7 +37,7 @@ export default function PoliciesPage() {
         })}
       </nav>
 
-      <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-5">
         {POLICIES.map((policy) => {
           const cause = CAUSE_CATEGORY_BY_SLUG[policy.slug];
 
@@ -59,53 +48,41 @@ export default function PoliciesPage() {
               className="rounded-xl border border-[var(--border)] bg-[var(--panel)] overflow-hidden scroll-mt-20"
             >
               <div className="h-1.5" style={{ backgroundColor: cause.color }} />
-              <div className="p-5 sm:p-6 flex flex-col gap-5">
+              <div className="p-4 sm:p-5 flex flex-col gap-3">
                 <div>
                   <span
-                    className="inline-block text-xs font-medium uppercase tracking-wide rounded-full px-2.5 py-1 text-white mb-2"
+                    className="inline-block text-xs font-medium uppercase tracking-wide rounded-full px-2.5 py-1 text-white mb-1.5"
                     style={{ backgroundColor: cause.color }}
                   >
                     {cause.shortLabel}
                   </span>
-                  <h2 className="text-2xl font-bold tracking-tight">{policy.title}</h2>
-                  <p className="text-sm text-[var(--muted)] mt-1">{policy.oneLiner}</p>
+                  <h2 className="text-xl font-bold tracking-tight">{policy.title}</h2>
+                  <p className="text-sm text-[var(--muted)]">{policy.oneLiner}</p>
                 </div>
 
-                <div>
-                  <h3 className="text-sm uppercase tracking-wide text-[var(--muted)] mb-1.5">
-                    The problem
-                  </h3>
-                  <p className="text-sm leading-relaxed">{policy.problem}</p>
-                </div>
+                <p className="text-sm leading-relaxed">{policy.summary}</p>
 
-                <div>
-                  <h3 className="text-sm uppercase tracking-wide text-[var(--muted)] mb-1.5">
-                    The proposal
-                  </h3>
-                  <p className="text-sm leading-relaxed">{policy.proposal}</p>
-                </div>
-
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900/40 p-4">
-                    <h3 className="text-sm font-semibold text-green-800 dark:text-green-400 mb-2">
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div className="rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900/40 p-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-green-800 dark:text-green-400 mb-1.5">
                       Strengths
                     </h3>
-                    <ul className="text-sm flex flex-col gap-2">
+                    <ul className="text-sm flex flex-col gap-1.5">
                       {policy.strengths.map((s, i) => (
-                        <li key={i} className="flex gap-2">
+                        <li key={i} className="flex gap-1.5">
                           <span className="text-green-600 dark:text-green-500 flex-shrink-0">+</span>
                           <span>{s}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
-                  <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 p-4">
-                    <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-500 mb-2">
+                  <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 p-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-500 mb-1.5">
                       Weaknesses
                     </h3>
-                    <ul className="text-sm flex flex-col gap-2">
+                    <ul className="text-sm flex flex-col gap-1.5">
                       {policy.weaknesses.map((w, i) => (
-                        <li key={i} className="flex gap-2">
+                        <li key={i} className="flex gap-1.5">
                           <span className="text-amber-600 dark:text-amber-500 flex-shrink-0">−</span>
                           <span>{w}</span>
                         </li>
@@ -114,27 +91,19 @@ export default function PoliciesPage() {
                   </div>
                 </div>
 
-                <div>
-                  <h3 className="text-sm uppercase tracking-wide text-[var(--muted)] mb-1.5">
-                    Bills on this topic
-                  </h3>
-                  <ul className="text-sm flex flex-col gap-1.5">
-                    {policy.bills.map((bill) => (
-                      <li key={bill.url}>
-                        <a
-                          href={bill.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-[var(--accent)] underline font-medium"
-                        >
-                          {bill.label}
-                        </a>
-                        {bill.note && (
-                          <span className="text-xs text-[var(--muted)]"> — {bill.note}</span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
+                <div className="text-xs flex flex-wrap gap-x-4 gap-y-1 pt-1 border-t border-[var(--border)]">
+                  {policy.bills.map((bill) => (
+                    <a
+                      key={bill.url}
+                      href={bill.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[var(--accent)] underline font-medium"
+                      title={bill.note}
+                    >
+                      {bill.label}
+                    </a>
+                  ))}
                 </div>
               </div>
             </section>
