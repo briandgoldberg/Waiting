@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import maplibregl, { type Map as MaplibreMap } from "maplibre-gl";
 import type { ProjectDTO } from "@/lib/types";
-import { getCauseCategory } from "@/lib/data/causeCategories";
 import { formatCapacity } from "@/lib/data/taxonomies";
 
 // Free, no-API-key vector basemap (CARTO's Voyager style, widely used with
@@ -36,7 +35,6 @@ function capacityRadius(p: ProjectDTO): number {
 const MARKER_COLOR = "#2563eb";
 
 function popupHtml(p: ProjectDTO): string {
-  const causeLabel = p.causeSlugs[0] ? getCauseCategory(p.causeSlugs[0])?.label : "Not yet determined";
   const capacityLabel = formatCapacity(p.capacityValue, p.capacityUnit);
   return `
     <div style="min-width:220px;font-family:inherit;">
@@ -48,7 +46,6 @@ function popupHtml(p: ProjectDTO): string {
       </div>
       <div style="padding:10px 14px;font-size:12px;">
         <div><strong>Waiting:</strong> ${p.yearsWaiting != null ? p.yearsWaiting.toFixed(1) + " yrs" : "—"}</div>
-        <div><strong>Cause:</strong> ${causeLabel}</div>
         <a href="/project/${p.slug}" style="display:inline-block;margin-top:8px;font-size:12px;font-weight:600;color:var(--accent);text-decoration:underline;">
           View project →
         </a>

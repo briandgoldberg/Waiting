@@ -101,27 +101,22 @@ export function FilterPanel({
         </div>
       </Section>
 
-      <Section title="Capacity range (MW)">
-        <div className="flex items-center gap-2 text-sm">
-          <input
-            type="number"
-            placeholder="Min"
-            className="w-20 rounded border border-[var(--border)] bg-transparent px-2 py-1"
-            value={filters.minCapacity ?? ""}
-            onChange={(e) =>
-              onChange({ ...filters, minCapacity: e.target.value === "" ? null : Number(e.target.value) })
-            }
-          />
-          <span className="text-[var(--muted)]">–</span>
-          <input
-            type="number"
-            placeholder="Max"
-            className="w-20 rounded border border-[var(--border)] bg-transparent px-2 py-1"
-            value={filters.maxCapacity ?? ""}
-            onChange={(e) =>
-              onChange({ ...filters, maxCapacity: e.target.value === "" ? null : Number(e.target.value) })
-            }
-          />
+      <Section title="Capacity">
+        <div className="flex flex-wrap gap-1.5">
+          {[250, 500, 1000].map((n) => (
+            <Pill
+              key={n}
+              active={filters.minCapacity === n}
+              onClick={() =>
+                onChange({
+                  ...filters,
+                  minCapacity: filters.minCapacity === n ? null : n,
+                })
+              }
+            >
+              {n.toLocaleString("en-US")}+ MW
+            </Pill>
+          ))}
         </div>
       </Section>
     </div>

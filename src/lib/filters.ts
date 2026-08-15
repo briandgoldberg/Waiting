@@ -5,8 +5,7 @@ export interface FilterState {
   minYearsWaiting: number | null; // e.g. 1, 3, 5 quick presets, or null = no minimum
   fuelTypes: FuelType[];
   projectTypes: ProjectType[];
-  minCapacity: number | null;
-  maxCapacity: number | null;
+  minCapacity: number | null; // e.g. 250, 500, 1000 MW quick presets, or null = no minimum
 }
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -14,7 +13,6 @@ export const DEFAULT_FILTERS: FilterState = {
   fuelTypes: [],
   projectTypes: [],
   minCapacity: null,
-  maxCapacity: null,
 };
 
 export function hasActiveFilters(f: FilterState): boolean {
@@ -22,8 +20,7 @@ export function hasActiveFilters(f: FilterState): boolean {
     f.minYearsWaiting != null ||
     f.fuelTypes.length > 0 ||
     f.projectTypes.length > 0 ||
-    f.minCapacity != null ||
-    f.maxCapacity != null
+    f.minCapacity != null
   );
 }
 
@@ -34,7 +31,6 @@ export function matchesFilters(p: ProjectDTO, f: FilterState): boolean {
   if (f.fuelTypes.length > 0 && !f.fuelTypes.includes(p.fuelType)) return false;
   if (f.projectTypes.length > 0 && !f.projectTypes.includes(p.projectType)) return false;
   if (f.minCapacity != null && (p.capacityValue == null || p.capacityValue < f.minCapacity)) return false;
-  if (f.maxCapacity != null && (p.capacityValue == null || p.capacityValue > f.maxCapacity)) return false;
   return true;
 }
 
@@ -67,11 +63,11 @@ export function buildChips(f: FilterState): FilterChip[] {
       onRemove: (state) => ({ ...state, projectTypes: state.projectTypes.filter((x) => x !== pt) }),
     });
   }
-  if (f.minCapacity != null || f.maxCapacity != null) {
+  if (f.minCapacity != null) {
     chips.push({
       key: "capacity",
-      label: `Capacity ${f.minCapacity ?? 0}–${f.maxCapacity ?? "∞"} MW`,
-      onRemove: (state) => ({ ...state, minCapacity: null, maxCapacity: null }),
+      label: `${f.minCapacity.toLocaleString("en-US")}+ MW`,
+      onRemove: (state) => ({ ...state, minCapacity: null }),
     });
   }
   return chips;

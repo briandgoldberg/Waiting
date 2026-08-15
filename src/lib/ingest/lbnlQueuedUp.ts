@@ -48,10 +48,21 @@
 //     since interconnection requests for storage/hybrid projects often run
 //     smaller than standalone generation plants of comparable significance.
 //
-// GEOCODING: this dataset publishes county + state (+ FIPS code) but no
-// lat/lon or street address — same limitation already documented for the
-// Permitting Dashboard. These projects will show on state-level views but
-// won't get a precise map pin without a separate geocoding step.
+// GEOCODING: this dataset publishes county + state + a 5-digit FIPS code but
+// no lat/lon or street address (same limitation already documented for the
+// Permitting Dashboard). Rather than leave these ungeocoded — which turned
+// out to be a real bug, not just a cosmetic gap: filtering by "length of
+// delay" narrows the result set to almost entirely LBNL-sourced projects
+// (the only source with real dates), and every one of them was being
+// silently dropped by the map (Map.tsx skips markers with no lat/lon),
+// making the map go empty under that filter — this module looks up each
+// row's FIPS code against src/lib/data/countyCentroids.json (from the U.S.
+// Census Bureau's public-domain 2025 Gazetteer county file, keyed by
+// 5-digit GEOID) and places a pin at the county's centroid. Confirmed the
+// raw fips_code cell comes through as a number with leading zeros stripped
+// for low-numbered state FIPS codes (e.g. Arizona's 04005 reads as 4005) —
+// COUNTY_CENTROIDS lookup below re-pads before matching. This is a real
+// county center, not the project's actual site — dataQualityNote says so.
 //
 // LICENSE / REDISTRIBUTION: resolved, unlike the earlier version of this
 // file's flagged-as-open-question note — the source page states the Queued
@@ -75,6 +86,16 @@ import type { CauseSlug } from "@/lib/data/causeCategories";
 import type { FuelType, ProjectStage } from "@/lib/data/taxonomies";
 import { resolveMatchKey } from "@/lib/ingest/manualOverrides";
 import { upsertNormalizedProjects, type NormalizedProject } from "@/lib/ingest/common";
+import countyCentroidsData from "@/lib/data/countyCentroids.json";
+
+const COUNTY_CENTROIDS = countyCentroidsData as unknown as Record<string, [number, number]>;
+
+function countyCentroid(fipsRaw: string | number | null | undefined): { lat: number; lon: number } | null {
+  if (fipsRaw == null || fipsRaw === "") return null;
+  const fips = String(fipsRaw).trim().padStart(5, "0");
+  const hit = COUNTY_CENTROIDS[fips];
+  return hit ? { lat: hit[0], lon: hit[1] } : null;
+}
 
 const LANDING_PAGE_URL = "https://emp.lbl.gov/queues";
 
@@ -94,6 +115,7 @@ const FIELD_CANDIDATES: Record<string, string[]> = {
   entity: ["entity", "utility", "balancing_authority", "iso_rto"],
   state: ["state", "state_poi"],
   county: ["county", "county_1"],
+  fipsCode: ["fips_code", "fips", "county_fips"],
   resourceType: ["type_clean", "resource_type", "fuel", "type"],
   capacityMw: ["mw_1", "mw1", "capacity_mw", "mw_total"],
   storageCapacityMw: ["mw_2", "mw2", "storage_mw"],
@@ -236,6 +258,7 @@ export function normalizeQueuedUpRow(row: QueuedUpRow, fieldMap: FieldMap): Norm
   const state = get("state") ? String(get("state")) : null;
   const county = get("county") ? String(get("county")) : null;
   const region = get("region") ? String(get("region")) : null;
+  const centroid = countyCentroid(get("fipsCode") as string | number | null | undefined);
 
   const causeSlugs: CauseSlug[] = ["interconnection_queue_backlog"];
 
@@ -244,7 +267,10 @@ export function normalizeQueuedUpRow(row: QueuedUpRow, fieldMap: FieldMap): Norm
     name: `${entity} Interconnection Request ${queueId}${resourceType ? ` (${resourceType})` : ""}`,
     projectType: fuelType === "storage" ? "storage" : "generation",
     fuelType,
-    // No lat/lon published — see module header.
+    // County-centroid approximation, not the project's exact site — see
+    // GEOCODING in the module header.
+    lat: centroid?.lat ?? null,
+    lon: centroid?.lon ?? null,
     state,
     county,
     capacityValue: Number.isFinite(capacityMw) ? capacityMw : null,
@@ -256,8 +282,9 @@ export function normalizeQueuedUpRow(row: QueuedUpRow, fieldMap: FieldMap): Norm
     causeSlugs,
     causeDetail:
       "Sourced from LBNL's Queued Up interconnection queue dataset — this project is waiting on its grid operator's interconnection study/agreement process.",
-    dataQualityNote:
-      "No exact site address/lat-lon is published in this dataset (state/county only); this record will not have a precise map pin until geocoded or cross-referenced with another source.",
+    dataQualityNote: centroid
+      ? "No exact site address is published in this dataset — the map pin is placed at the project's county centroid, not its actual site."
+      : "No exact site address/lat-lon is published in this dataset, and this project's county couldn't be matched to a centroid (missing or unrecognized FIPS code); it will not appear on the map until geocoded another way.",
     sources: [
       {
         label: "LBNL Queued Up (interconnection queue dataset)",
