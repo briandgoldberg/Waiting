@@ -2,8 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { serializeProject } from "@/lib/serialize";
-import { CauseBadge } from "@/components/CauseBadge";
-import { getCauseCategory } from "@/lib/data/causeCategories";
 import { FUEL_TYPE_BY_VALUE, formatCapacity } from "@/lib/data/taxonomies";
 import { formatUsd } from "@/lib/calc/investmentWaiting";
 
@@ -57,31 +55,6 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           value={p.verificationStatus.replace(/_/g, " ")}
         />
       </div>
-
-      <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">
-        <h2 className="text-lg font-semibold mb-3">Why it&rsquo;s waiting</h2>
-        {p.causeSlugs.length === 0 ? (
-          <p className="text-sm text-[var(--muted)]">
-            Cause category not yet determined for this project — see data quality notes below.
-          </p>
-        ) : (
-          <div className="flex flex-col gap-4">
-            {p.causeSlugs.map((slug) => {
-              const cause = getCauseCategory(slug);
-              if (!cause) return null;
-              return (
-                <div key={slug} className="border-l-4 pl-4" style={{ borderColor: cause.color }}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <CauseBadge slug={slug} />
-                  </div>
-                  <p className="text-sm">{cause.description}</p>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        <p className="text-sm mt-4 border-t border-[var(--border)] pt-4">{p.causeDetail}</p>
-      </section>
 
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">
         <h2 className="text-lg font-semibold mb-3">Estimated investment waiting</h2>
