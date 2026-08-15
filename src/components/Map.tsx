@@ -55,6 +55,8 @@ export function Map({ projects }: { projects: ProjectDTO[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MaplibreMap | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
+  const projectsRef = useRef(projects);
+  projectsRef.current = projects;
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -71,10 +73,35 @@ export function Map({ projects }: { projects: ProjectDTO[] }) {
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
 
-    map.on("load", () => {
+    // MapLibre's "load" event is the textbook way to know a map is ready,
+    // but in production it has been observed to never fire even after the
+    // basemap has visibly finished rendering (isStyleLoaded()/loaded() stay
+    // false indefinitely — some style sub-resource apparently never
+    // resolves the internal "fully loaded" bookkeeping, despite every
+    // tile/sprite/glyph request succeeding). Gating addSource/addLayer
+    // behind "load" alone silently drops every project pin when that
+    // happens — confirmed live in production on 2026-08-14: tiles/sprite
+    // all 200'd, the basemap rendered, but isStyleLoaded() stayed false
+    // forever and "load" never fired, so the "projects" source was never
+    // added at all. Fix: don't wait on any single event. Retry a cheap,
+    // idempotent setup function on a short interval until it actually
+    // succeeds, using isStyleLoaded() (not the "load" event) as the
+    // real readiness check — addSource works as soon as that's true,
+    // regardless of whether "load" itself ever fires.
+    let cancelled = false;
+    let attempts = 0;
+
+    function trySetUpProjectLayers() {
+      if (cancelled || map.getSource("projects")) return;
+      attempts += 1;
+      if (!map.isStyleLoaded()) {
+        if (attempts < 100) setTimeout(trySetUpProjectLayers, 100); // ~10s ceiling
+        return;
+      }
+
       map.addSource("projects", {
         type: "geojson",
-        data: toFeatureCollection(projects) as GeoJSON.FeatureCollection,
+        data: toFeatureCollection(projectsRef.current) as GeoJSON.FeatureCollection,
         cluster: true,
         clusterMaxZoom: 8,
         clusterRadius: 40,
@@ -177,9 +204,23 @@ export function Map({ projects }: { projects: ProjectDTO[] }) {
       map.on("mouseleave", "clusters", () => {
         map.getCanvas().style.cursor = "";
       });
-    });
+
+      // If the projects prop changed while we were still waiting for style
+      // readiness, apply the latest data now instead of the possibly-stale
+      // snapshot captured when trySetUpProjectLayers first ran.
+      const source = map.getSource("projects") as GeoJSONSource;
+      source.setData(toFeatureCollection(projectsRef.current) as GeoJSON.FeatureCollection);
+    }
+
+    // Race every plausible readiness signal — whichever comes first wins,
+    // the rest are harmless no-ops thanks to the getSource("projects") guard.
+    map.on("load", trySetUpProjectLayers);
+    map.on("styledata", trySetUpProjectLayers);
+    map.on("idle", trySetUpProjectLayers);
+    trySetUpProjectLayers();
 
     return () => {
+      cancelled = true;
       map.remove();
       mapRef.current = null;
     };
@@ -190,12 +231,10 @@ export function Map({ projects }: { projects: ProjectDTO[] }) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const applyData = () => {
-      const source = map.getSource("projects") as GeoJSONSource | undefined;
-      if (source) source.setData(toFeatureCollection(projects) as GeoJSON.FeatureCollection);
-    };
-    if (map.isStyleLoaded()) applyData();
-    else map.once("load", applyData);
+    const source = map.getSource("projects") as GeoJSONSource | undefined;
+    if (source) source.setData(toFeatureCollection(projects) as GeoJSON.FeatureCollection);
+    // If the source doesn't exist yet, trySetUpProjectLayers's own retry
+    // loop will pick up the latest projectsRef.current value once it runs.
   }, [projects]);
 
   return <div ref={containerRef} className="h-full w-full rounded-lg" />;
