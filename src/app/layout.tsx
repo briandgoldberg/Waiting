@@ -6,6 +6,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://waitingforpower.com"),
   title: "WaitingForPower — Energy Project Tracker",
   description:
     "Tracking proposed U.S. energy projects — generation, transmission, storage, LNG, and pipelines, every fuel type — and how long each has been waiting for approval, and why.",
@@ -47,14 +48,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               structural, sourced.{" "}
               <Link href="/methodology" className="underline">Methodology &amp; sources</Link>.
             </p>
-            <a
-              href="https://github.com/briandgoldberg/WaitingForPower"
-              target="_blank"
-              rel="noreferrer"
-              className="underline"
-            >
-              Source on GitHub
-            </a>
+            <div className="flex items-center gap-3">
+              <Link href="/contact" className="underline">
+                Contact us
+              </Link>
+              <a
+                href="https://github.com/briandgoldberg/WaitingForPower"
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
+                Source on GitHub
+              </a>
+            </div>
           </div>
         </footer>
       </body>
