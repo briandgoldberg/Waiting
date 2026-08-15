@@ -157,3 +157,35 @@ export async function upsertNormalizedProject(p: NormalizedProject) {
 
   return project;
 }
+
+/**
+ * Upserts many projects with limited concurrency instead of one at a time.
+ * `upsertNormalizedProject` does ~5 sequential DB round trips per project;
+ * run fully sequentially, a few hundred projects takes minutes — too slow
+ * for a serverless function's execution time limit (see the EIA-860M cron
+ * route, src/app/api/cron/ingest-eia/route.ts). Running a bounded number of
+ * projects concurrently instead cuts that to seconds, without opening so
+ * many connections at once that the database chokes.
+ */
+export async function upsertNormalizedProjects(
+  projects: NormalizedProject[],
+  concurrency = 20,
+): Promise<{ upserted: number; errors: { matchKey: string; message: string }[] }> {
+  let upserted = 0;
+  const errors: { matchKey: string; message: string }[] = [];
+
+  for (let i = 0; i < projects.length; i += concurrency) {
+    const batch = projects.slice(i, i + concurrency);
+    const results = await Promise.allSettled(batch.map((p) => upsertNormalizedProject(p)));
+    for (let j = 0; j < results.length; j++) {
+      const result = results[j];
+      if (result.status === "fulfilled") {
+        upserted += 1;
+      } else {
+        errors.push({ matchKey: batch[j].matchKey, message: String(result.reason) });
+      }
+    }
+  }
+
+  return { upserted, errors };
+}

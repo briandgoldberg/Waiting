@@ -20,9 +20,10 @@
 // most recently actually-released month returns the real
 // `.xlsx`/`spreadsheetml` file (confirmed 2026-08-14: only
 // `xls/june_generator2026.xlsx` was real; every "newer"-sounding month name
-// listed on the page was the soft-404 page). Check Content-Type, not just
-// HTTP status, when scripting the download. There is roughly a 2-month
-// publication lag.
+// listed on the page was the soft-404 page). `findCurrentWorkbookUrl` below
+// checks Content-Type, not just HTTP status, and walks backward from the
+// current month to find the most recent real file. There is roughly a
+// 2-month publication lag.
 //
 // CAPACITY FLOOR: the Planned tab is generator-level, not project-level,
 // and includes everything from multi-hundred-MW power plants down to
@@ -41,7 +42,7 @@ import * as XLSX from "xlsx";
 import type { CauseSlug } from "@/lib/data/causeCategories";
 import type { FuelType, ProjectStage } from "@/lib/data/taxonomies";
 import { resolveMatchKey } from "@/lib/ingest/manualOverrides";
-import { upsertNormalizedProject, type NormalizedProject } from "@/lib/ingest/common";
+import { upsertNormalizedProjects, type NormalizedProject } from "@/lib/ingest/common";
 
 const SHEET_NAME_CANDIDATES = ["Planned"];
 
@@ -129,8 +130,7 @@ interface PlannedRow {
   [column: string]: string | number | null;
 }
 
-export function parseWorkbook(filePath: string): PlannedRow[] {
-  const buf = readFileSync(filePath);
+export function parseWorkbookBuffer(buf: Buffer): PlannedRow[] {
   const workbook = XLSX.read(buf, { type: "buffer" });
   const sheetName = workbook.SheetNames.find((n) =>
     SHEET_NAME_CANDIDATES.some((c) => n.toLowerCase() === c.toLowerCase()),
@@ -146,6 +146,10 @@ export function parseWorkbook(filePath: string): PlannedRow[] {
   // column-name row (row index 2, 0-based) — confirmed in the 2026-06 file.
   const rows = XLSX.utils.sheet_to_json<PlannedRow>(sheet, { defval: null, raw: false, range: 2 });
   return rows;
+}
+
+export function parseWorkbook(filePath: string): PlannedRow[] {
+  return parseWorkbookBuffer(readFileSync(filePath));
 }
 
 export function normalizeEiaPlannedRow(row: PlannedRow, fieldMap: FieldMap): NormalizedProject | null {
@@ -203,18 +207,28 @@ export function normalizeEiaPlannedRow(row: PlannedRow, fieldMap: FieldMap): Nor
   };
 }
 
-export async function ingestEia860mPlanned(filePath: string, minCapacityMw = MIN_CAPACITY_MW) {
-  const rows = parseWorkbook(filePath);
+export interface IngestSummary {
+  upserted: number;
+  skippedBelowFloor: number;
+  skippedNotWaiting: number;
+  errors: { matchKey: string; message: string }[];
+  sourceFileUrl?: string;
+}
+
+export async function ingestEia860mPlannedBuffer(
+  buf: Buffer,
+  minCapacityMw = MIN_CAPACITY_MW,
+): Promise<IngestSummary> {
+  const rows = parseWorkbookBuffer(buf);
   if (rows.length === 0) {
-    console.log("No rows found in Planned tab.");
-    return;
+    return { upserted: 0, skippedBelowFloor: 0, skippedNotWaiting: 0, errors: [] };
   }
   const headerRow = Object.keys(rows[0]);
   const fieldMap = resolveFieldMap(headerRow);
 
-  let upserted = 0;
   let skippedBelowFloor = 0;
   let skippedNotWaiting = 0;
+  const toUpsert: NormalizedProject[] = [];
 
   for (const row of rows) {
     const capacity = Number(row[fieldMap.nameplateCapacityMw!] ?? NaN);
@@ -227,15 +241,61 @@ export async function ingestEia860mPlanned(filePath: string, minCapacityMw = MIN
       skippedNotWaiting += 1;
       continue;
     }
-    await upsertNormalizedProject(normalized);
-    upserted += 1;
+    toUpsert.push(normalized);
   }
 
-  console.log(
-    `EIA-860M Planned ingestion complete: upserted ${upserted} projects ` +
-      `(skipped ${skippedBelowFloor} below the ${minCapacityMw} MW floor, ` +
-      `${skippedNotWaiting} already-operating/unrecognized-status rows).`,
+  const { upserted, errors } = await upsertNormalizedProjects(toUpsert);
+
+  return { upserted, skippedBelowFloor, skippedNotWaiting, errors };
+}
+
+export async function ingestEia860mPlanned(filePath: string, minCapacityMw = MIN_CAPACITY_MW): Promise<IngestSummary> {
+  return ingestEia860mPlannedBuffer(readFileSync(filePath), minCapacityMw);
+}
+
+// EIA lists a full year of month-name links on its landing page, but most
+// 200-OK to a small text/html "not released yet" placeholder rather than
+// the real workbook — see module header. Walk backward from the current
+// month (server clock) far enough to cover EIA's typical ~2-month
+// publication lag, and return the first URL whose Content-Type is a real
+// spreadsheet.
+const MONTH_NAMES = [
+  "january", "february", "march", "april", "may", "june",
+  "july", "august", "september", "october", "november", "december",
+];
+
+export async function findCurrentWorkbookUrl(monthsToCheck = 6): Promise<string> {
+  const now = new Date();
+  for (let i = 0; i < monthsToCheck; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const month = MONTH_NAMES[d.getMonth()];
+    const year = d.getFullYear();
+    for (const prefix of ["xls", "archive/xls"]) {
+      const url = `https://www.eia.gov/electricity/data/eia860m/${prefix}/${month}_generator${year}.xlsx`;
+      try {
+        const res = await fetch(url);
+        const contentType = res.headers.get("content-type") ?? "";
+        if (res.ok && /spreadsheet/i.test(contentType)) {
+          return url;
+        }
+      } catch {
+        // network hiccup on this candidate — try the next one
+      }
+    }
+  }
+  throw new Error(
+    `Could not find a real EIA-860M workbook in the last ${monthsToCheck} months — ` +
+      `EIA may have changed their URL naming convention. Check https://www.eia.gov/electricity/data/eia860m/ manually.`,
   );
+}
+
+export async function fetchAndIngestCurrentWorkbook(minCapacityMw = MIN_CAPACITY_MW): Promise<IngestSummary> {
+  const url = await findCurrentWorkbookUrl();
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to download ${url}: ${res.status}`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  const summary = await ingestEia860mPlannedBuffer(buf, minCapacityMw);
+  return { ...summary, sourceFileUrl: url };
 }
 
 if (require.main === module) {
@@ -245,12 +305,23 @@ if (require.main === module) {
       "Usage: npx tsx src/lib/ingest/eia860mPlanned.ts <path-to-downloaded-workbook.xlsx>\n" +
         "(or set EIA_860M_XLSX_PATH). Download the current workbook from " +
         "https://www.eia.gov/electricity/data/eia860m/ first — check Content-Type, several " +
-        "listed month links soft-404 to an HTML page instead of the real file.",
+        "listed month links soft-404 to an HTML page instead of the real file. Or run " +
+        "fetchAndIngestCurrentWorkbook() to do that automatically (used by the cron route).",
     );
     process.exit(1);
   }
-  ingestEia860mPlanned(filePath).catch((err) => {
-    console.error(err);
-    process.exit(1);
-  });
+  ingestEia860mPlanned(filePath)
+    .then((summary) => {
+      console.log(
+        `EIA-860M Planned ingestion complete: upserted ${summary.upserted} projects ` +
+          `(skipped ${summary.skippedBelowFloor} below the ${MIN_CAPACITY_MW} MW floor, ` +
+          `${summary.skippedNotWaiting} already-operating/unrecognized-status rows, ` +
+          `${summary.errors.length} errors).`,
+      );
+      if (summary.errors.length > 0) console.error(summary.errors);
+    })
+    .catch((err) => {
+      console.error(err);
+      process.exit(1);
+    });
 }
