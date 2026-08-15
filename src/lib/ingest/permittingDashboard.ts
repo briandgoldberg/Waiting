@@ -53,7 +53,7 @@
 import type { CauseSlug } from "@/lib/data/causeCategories";
 import type { FuelType, ProjectStage, ProjectType } from "@/lib/data/taxonomies";
 import { resolveMatchKey } from "@/lib/ingest/manualOverrides";
-import { upsertNormalizedProject, type NormalizedProject } from "@/lib/ingest/common";
+import { upsertNormalizedProjects, type NormalizedProject } from "@/lib/ingest/common";
 
 const SOCRATA_BASE = "https://data.permits.performance.gov/resource/fh3k-bqsc.json";
 
@@ -122,6 +122,38 @@ interface DashboardRecord {
   project_url?: { url: string };
 }
 
+// This Socrata dataset is a denormalized join, not one row per project —
+// confirmed live on 2026-08-15: querying the energy sectors returned 3,378
+// raw rows but only 102 unique `project_id` values, with the "duplicates"
+// being byte-for-byte identical (not milestone/timeline variants that would
+// differ by date). Dedupe by project_id before normalizing, or the
+// (now-batched) upsert step does 33x more DB writes than necessary for the
+// same end result.
+//
+// STATUS FILTER: of the 102 unique projects, 48 are "Complete" and 20 are
+// "Cancelled" — neither is "waiting" on anything anymore. Excluded, per
+// explicit product decision, leaving only In Progress / Planned / Paused
+// (34 projects as of 2026-08-15). Adjust EXCLUDED_STATUSES and re-run any
+// time — upserts are idempotent by project_id either way.
+const EXCLUDED_STATUSES = ["Complete", "Cancelled"];
+
+// Cross-source identity matching (README open question #1): these
+// Permitting Dashboard project_ids are the SAME physical project as an
+// existing hand-curated seed entry (prisma/seed.ts), confirmed by name and
+// (for Grain Belt Express) a matching Permitting Dashboard URL already
+// cited in the seed entry's own sources. The seed entries bypass the
+// matchKey/slugify pipeline entirely (hardcoded slugs in seed.ts), so a
+// manualOverrides.csv row can't make this ingestion path land on the same
+// row automatically — simplest honest fix is to skip these specific IDs
+// here, in favor of the more detailed hand-researched entry. Confirmed
+// live on 2026-08-15. Revisit if the seed entries are ever migrated onto
+// the shared matchKey system.
+const KNOWN_DUPLICATE_PROJECT_IDS: Record<string, string> = {
+  "109441": "Grain Belt Express Transmission — Phase 1 (seed entry, more detailed)",
+  "95051": "SouthCoast Wind (seed entry, more detailed)",
+  "74166": "Ocean Wind 1 (seed entry — also more accurately shows status as cancelled)",
+};
+
 async function fetchAll(): Promise<DashboardRecord[]> {
   const sectorClause = ENERGY_SECTORS.map((s) => `'${s}'`).join(",");
   const params = new URLSearchParams({
@@ -132,7 +164,18 @@ async function fetchAll(): Promise<DashboardRecord[]> {
   if (!res.ok) {
     throw new Error(`Permitting Dashboard API error ${res.status}: ${await res.text()}`);
   }
-  return (await res.json()) as DashboardRecord[];
+  const rows = (await res.json()) as DashboardRecord[];
+
+  const seen = new Set<string>();
+  const deduped: DashboardRecord[] = [];
+  for (const row of rows) {
+    if (seen.has(row.project_id)) continue;
+    if (EXCLUDED_STATUSES.includes(row.project_field_project_status ?? "")) continue;
+    if (row.project_id in KNOWN_DUPLICATE_PROJECT_IDS) continue;
+    seen.add(row.project_id);
+    deduped.push(row);
+  }
+  return deduped;
 }
 
 export function normalizeDashboardRecord(r: DashboardRecord): NormalizedProject {
@@ -177,10 +220,13 @@ export function normalizeDashboardRecord(r: DashboardRecord): NormalizedProject 
 
 export async function ingestPermittingDashboard() {
   const rows = await fetchAll();
-  for (const row of rows) {
-    await upsertNormalizedProject(normalizeDashboardRecord(row));
-  }
-  console.log(`Permitting Dashboard ingestion complete: upserted ${rows.length} projects.`);
+  const normalized = rows.map(normalizeDashboardRecord);
+  const { upserted, errors } = await upsertNormalizedProjects(normalized);
+  console.log(
+    `Permitting Dashboard ingestion complete: upserted ${upserted} projects (${errors.length} errors).`,
+  );
+  if (errors.length > 0) console.error(errors);
+  return { upserted, errors };
 }
 
 if (require.main === module) {
