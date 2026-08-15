@@ -1,47 +1,92 @@
 // LBNL "Queued Up" ingestion — the most comprehensive U.S. interconnection
 // queue dataset (aggregated from 50+ ISOs/utilities), published annually as
-// a downloadable Excel workbook at https://emp.lbl.gov/queues. This is the
-// primary source for the "interconnection queue backlog" cause category.
+// a downloadable Excel workbook, currently linked from
+// https://emp.lbl.gov/queues. This is the only currently-ingested source
+// that publishes a real per-project "date entered queue" — see
+// applicationFiledDate below — so it's the fix for projects site-wide
+// showing no waiting time (see README).
 //
-// NOT a live API — there is nothing to call. This module is a *batch*
-// ingestion script: download the current year's workbook by hand from
-// emp.lbl.gov/queues, save it locally, and point LBNL_QUEUED_UP_XLSX_PATH
-// at it (or pass a path as argv[2]).
+// FETCHING: unlike EIA-860M, there's no predictable filename pattern to
+// guess (confirmed 2026-08-15: this year's file is
+// /sites/default/files/2026-05/LBNL_Ix_Queue_Data_File_thru2025.xlsx — the
+// year-month upload folder and the "thru<year>" suffix both change on every
+// annual release). Instead, findCurrentWorkbookUrl() fetches the queues
+// landing page and scrapes the .xlsx attachment link out of the HTML, same
+// as a human clicking "download" would. Confirmed 2026-08-15: emp.lbl.gov
+// 403s any request without a browser-like User-Agent header (plain
+// `fetch()` with no headers gets blocked; a Chrome UA string is not) — both
+// requests below (the landing page and the workbook itself) set one.
 //
-// OPEN QUESTION — exact column names: LBNL ships a "codebook" tab in the
-// workbook documenting every column, and column names have shifted
-// slightly between annual editions in the past. We did not have a
-// downloaded copy of the workbook to inspect while building this module
-// (it's a manual download, not fetchable as structured data), so rather
-// than hardcode column indices we picked from memory and risk silently
-// misreading the file, this parser:
-//   1. Reads the actual header row from the project-level data tab.
-//   2. Matches each expected field against a list of plausible column-name
-//      variants (see FIELD_CANDIDATES below).
-//   3. Throws a clear error naming any expected field it couldn't find,
-//      instead of guessing a column and importing wrong data silently.
-// Before running this for real, open the workbook's codebook tab and
-// confirm/adjust FIELD_CANDIDATES and DATA_SHEET_NAME_CANDIDATES against
-// the actual current edition.
+// WORKBOOK STRUCTURE (confirmed 2026-08-15 against the 2026-edition file,
+// not guessed from memory): the ~40-tab workbook's actual project-level data
+// lives on the sheet named "03. Complete Queue Data" (SHEET_NAME_CANDIDATES
+// below), not a sheet literally named "data" as an earlier, never-actually-
+// run version of this module assumed. That sheet also has an extra
+// "RETURN TO CONTENTS" link row above the real header row, so the header is
+// row index 1 (0-based), not row 0 — see parseWorkbookBuffer. Real column
+// names (from the "04. Data Codebook" tab) are seeded as the primary
+// candidates in FIELD_CANDIDATES; kept as a resolved-from-header-row lookup
+// rather than hardcoded indices in case LBNL renames columns in a future
+// edition, per the same defensive pattern as eia860mPlanned.ts.
 //
-// LICENSE / REDISTRIBUTION: LBNL publishes this dataset for public research
-// use with a citation request (cite "Rand et al., Queued Up: Characteristics
-// of Power Plants Seeking Transmission Interconnection, Lawrence Berkeley
-// National Laboratory, [year] edition"). We have not independently confirmed
-// whether LBNL's terms permit redistributing derived rows (e.g. via this
-// site's own API) at scale — flagging as an open question rather than
-// assuming. At minimum, always keep the citation attached (see
-// `sources` below) and consider linking to the source workbook instead of
-// mirroring the raw dataset if that turns out to matter.
+// IDENTITY: the codebook explicitly says q_id alone isn't unique — combine
+// with `entity`. matchKey below does that. Checked for collisions within the
+// filtered set actually ingested (active, >=100MW): zero duplicates as of
+// the 2026 edition, though ~38k un-filtered rows contain 135 (from
+// long-since-operational/withdrawn duplicate entries this module never
+// ingests anyway).
+//
+// FILTERS (explicit product decisions, confirmed with the site owner
+// 2026-08-15, re-run any time — upserts are idempotent by entity+q_id):
+//   - q_status: "active" only. The raw file also has withdrawn (24,221),
+//     operational (4,789), suspended (668), and unknown (10) rows —
+//     withdrawn/operational aren't "waiting" on anything anymore, and
+//     "suspended" was deliberately excluded too (stricter than the
+//     Permitting Dashboard's treatment of "Paused" as still-waiting).
+//   - mw_1 >= MIN_CAPACITY_MW (100): keeps this to utility-scale requests;
+//     lower than the 250 MW floor used for EIA-860M/Permitting Dashboard
+//     since interconnection requests for storage/hybrid projects often run
+//     smaller than standalone generation plants of comparable significance.
+//
+// GEOCODING: this dataset publishes county + state (+ FIPS code) but no
+// lat/lon or street address — same limitation already documented for the
+// Permitting Dashboard. These projects will show on state-level views but
+// won't get a precise map pin without a separate geocoding step.
+//
+// LICENSE / REDISTRIBUTION: resolved, unlike the earlier version of this
+// file's flagged-as-open-question note — the source page states the Queued
+// Up data file is licensed CC BY 4.0 (confirmed 2026-08-15, emp.lbl.gov/
+// queues), attribution to "Lawrence Berkeley National Laboratory &
+// GridTracker" required. `sources` below carries that attribution and a
+// link back to the source page.
+//
+// Runs on a daily cron (src/app/api/cron/ingest-lbnl) in production, same
+// as the other two sources — even though LBNL only republishes this file
+// annually, checking daily costs one cheap HTML fetch on the days nothing's
+// changed, and picks up a new edition within 24 hours of publication with
+// no manual step. Run `npx tsx src/lib/ingest/lbnlQueuedUp.ts` (or
+// `npm run ingest:lbnl`) yourself for a manual pull; pass a local file path
+// as argv[1] to parse an already-downloaded workbook instead of fetching.
+export const MIN_CAPACITY_MW = 100;
 
 import { readFileSync } from "node:fs";
 import * as XLSX from "xlsx";
 import type { CauseSlug } from "@/lib/data/causeCategories";
 import type { FuelType, ProjectStage } from "@/lib/data/taxonomies";
 import { resolveMatchKey } from "@/lib/ingest/manualOverrides";
-import { upsertNormalizedProject, type NormalizedProject } from "@/lib/ingest/common";
+import { upsertNormalizedProjects, type NormalizedProject } from "@/lib/ingest/common";
 
-const DATA_SHEET_NAME_CANDIDATES = ["data", "Queued Up Data", "Interconnection Requests"];
+const LANDING_PAGE_URL = "https://emp.lbl.gov/queues";
+
+// A browser UA is required — see module header. Not spoofing anything else
+// (no cookies/referer needed), just avoiding the default Node fetch UA that
+// gets blocked outright.
+const BROWSER_HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+};
+
+const SHEET_NAME_CANDIDATES = ["03. Complete Queue Data", "data", "Queued Up Data", "Interconnection Requests"];
 
 const FIELD_CANDIDATES: Record<string, string[]> = {
   queueId: ["q_id", "queue_id", "project_id"],
@@ -50,18 +95,20 @@ const FIELD_CANDIDATES: Record<string, string[]> = {
   state: ["state", "state_poi"],
   county: ["county", "county_1"],
   resourceType: ["type_clean", "resource_type", "fuel", "type"],
-  capacityMw: ["mw1", "capacity_mw", "mw_total"],
-  storageCapacityMw: ["mw2", "storage_mw"],
+  capacityMw: ["mw_1", "mw1", "capacity_mw", "mw_total"],
+  storageCapacityMw: ["mw_2", "mw2", "storage_mw"],
   queueDate: ["q_date", "queue_date", "date_submitted", "date_entered_queue"],
-  withdrawnDate: ["withdrawn_date", "date_withdrawn"],
+  withdrawnDate: ["wd_date", "withdrawn_date", "date_withdrawn"],
   iaDate: ["ia_date", "date_ia_executed"],
-  codDate: ["cod", "cod_date", "estimated_cod"],
+  codDate: ["on_date", "cod", "cod_date", "estimated_cod"],
+  iaPhase: ["IA_phase_clean", "ia_phase_clean", "ia_phase"],
+  region: ["region"],
 };
 
 type FieldMap = Record<keyof typeof FIELD_CANDIDATES, string | undefined>;
 
 function resolveFieldMap(headerRow: string[]): FieldMap {
-  const normalized = headerRow.map((h) => h?.toString().trim().toLowerCase());
+  const normalized = headerRow.map((h) => h?.toString().trim());
   const map = {} as FieldMap;
   const missing: string[] = [];
 
@@ -77,7 +124,7 @@ function resolveFieldMap(headerRow: string[]): FieldMap {
   if (missing.length > 0) {
     throw new Error(
       `LBNL Queued Up parser could not find columns for: ${missing.join(", ")}. ` +
-        `Open the workbook's codebook tab, find the real column names, and add them ` +
+        `Open the workbook's "04. Data Codebook" tab, find the real column names, and add them ` +
         `to FIELD_CANDIDATES in src/lib/ingest/lbnlQueuedUp.ts.`,
     );
   }
@@ -86,16 +133,20 @@ function resolveFieldMap(headerRow: string[]): FieldMap {
 }
 
 const RESOURCE_TYPE_TO_FUEL: [RegExp, FuelType][] = [
-  [/solar/i, "solar"],
   [/offshore wind/i, "wind_offshore"],
-  [/wind/i, "wind_onshore"],
-  [/storage|battery/i, "storage"],
-  [/gas/i, "gas"],
+  [/\bwind\b/i, "wind_onshore"],
+  [/solar/i, "solar"],
+  [/battery|storage/i, "storage"],
+  [/\bgas\b/i, "gas"],
   [/nuclear/i, "nuclear"],
   [/hydro/i, "hydro"],
   [/geothermal/i, "geothermal"],
 ];
 
+// type_clean can be a hybrid string like "Solar+Battery" — match the first
+// recognized keyword. Coal/Diesel/Oil/Hydrogen (real values in this
+// dataset) have no dedicated FuelType on this site and fall through to
+// "other".
 function resourceTypeToFuel(resourceType: string): FuelType {
   for (const [re, fuel] of RESOURCE_TYPE_TO_FUEL) {
     if (re.test(resourceType)) return fuel;
@@ -103,33 +154,63 @@ function resourceTypeToFuel(resourceType: string): FuelType {
   return "other";
 }
 
-function queueStatusToStage(status: string): ProjectStage {
-  const s = status.toLowerCase();
-  if (s.includes("withdraw")) return "cancelled";
-  if (s.includes("operational") || s.includes("in service")) return "completed";
-  if (s.includes("ia executed") || s.includes("agreement")) return "approved_awaiting_construction";
+// IA_phase_clean gives real study-phase granularity this site's other two
+// sources can't (they default every project to "agency_permitting") — see
+// FIELD_CANDIDATES.iaPhase. Only reachable for q_status === "active" rows
+// (withdrawn/operational/suspended are filtered out before this runs), and
+// rows whose phase is "Construction" are filtered out separately (see
+// ingestLbnlQueuedUpBuffer) — per explicit product decision, this site
+// tracks projects still waiting on permitting/interconnection processes,
+// and a project whose interconnection facilities are already under
+// construction has cleared that hurdle even if the plant itself hasn't
+// come online yet. So this function never actually needs to return
+// "under_construction" in practice, but keeps the check in case a future
+// edition's phase labels drift.
+function iaPhaseToStage(phase: string): ProjectStage {
+  const p = phase.toLowerCase();
+  if (p.includes("construction")) return "under_construction";
+  if (p.includes("ia executed")) return "approved_awaiting_construction";
+  if (p.includes("ia pending")) return "approved_awaiting_construction";
   return "interconnection_study";
 }
 
-interface QueuedUpRow {
-  [column: string]: string | number | undefined;
+// Excel stores dates as a day count from a Dec-30-1899 epoch (with a
+// well-known off-by-one leap-year quirk baked into the format). This
+// workbook's date columns come through sheet_to_json as raw numbers (e.g.
+// 43511), not JS Date objects — confirmed 2026-08-15 against the actual
+// file — so convert explicitly rather than relying on `new Date(number)`,
+// which would misinterpret the number as a millisecond timestamp.
+function excelSerialToDate(serial: number): Date | null {
+  if (!Number.isFinite(serial)) return null;
+  const ms = Math.round((serial - 25569) * 86400 * 1000);
+  const d = new Date(ms);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
-export function parseWorkbook(filePath: string): QueuedUpRow[] {
-  const buf = readFileSync(filePath);
+interface QueuedUpRow {
+  [column: string]: string | number | null;
+}
+
+export function parseWorkbookBuffer(buf: Buffer): QueuedUpRow[] {
   const workbook = XLSX.read(buf, { type: "buffer" });
   const sheetName = workbook.SheetNames.find((n) =>
-    DATA_SHEET_NAME_CANDIDATES.some((c) => n.toLowerCase() === c.toLowerCase()),
+    SHEET_NAME_CANDIDATES.some((c) => n.toLowerCase() === c.toLowerCase()),
   );
   if (!sheetName) {
     throw new Error(
-      `Could not find a data sheet among candidates [${DATA_SHEET_NAME_CANDIDATES.join(", ")}]. ` +
+      `Could not find a data sheet among candidates [${SHEET_NAME_CANDIDATES.join(", ")}]. ` +
         `Sheets in this workbook: ${workbook.SheetNames.join(", ")}`,
     );
   }
   const sheet = workbook.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json<QueuedUpRow>(sheet, { defval: null });
+  // Row 0 is a "RETURN TO CONTENTS" link cell, not data — the real header is
+  // row index 1. See module header.
+  const rows = XLSX.utils.sheet_to_json<QueuedUpRow>(sheet, { defval: null, range: 1 });
   return rows;
+}
+
+export function parseWorkbook(filePath: string): QueuedUpRow[] {
+  return parseWorkbookBuffer(readFileSync(filePath));
 }
 
 export function normalizeQueuedUpRow(row: QueuedUpRow, fieldMap: FieldMap): NormalizedProject {
@@ -139,29 +220,39 @@ export function normalizeQueuedUpRow(row: QueuedUpRow, fieldMap: FieldMap): Norm
   };
 
   const queueId = String(get("queueId") ?? "");
-  const matchKey = resolveMatchKey("lbnl", queueId);
+  const entity = String(get("entity") ?? "");
+  const matchKey = resolveMatchKey("lbnl", `${entity}-${queueId}`);
   const resourceType = String(get("resourceType") ?? "");
   const fuelType = resourceTypeToFuel(resourceType);
-  const status = String(get("status") ?? "Active");
   const capacityMw = Number(get("capacityMw") ?? NaN);
   const queueDateRaw = get("queueDate");
-  const queueDate = queueDateRaw ? new Date(queueDateRaw as string) : null;
+  const queueDate =
+    typeof queueDateRaw === "number"
+      ? excelSerialToDate(queueDateRaw)
+      : queueDateRaw
+        ? new Date(queueDateRaw as string)
+        : null;
+  const iaPhase = String(get("iaPhase") ?? "");
+  const state = get("state") ? String(get("state")) : null;
+  const county = get("county") ? String(get("county")) : null;
+  const region = get("region") ? String(get("region")) : null;
 
   const causeSlugs: CauseSlug[] = ["interconnection_queue_backlog"];
 
   return {
     matchKey,
-    name: `Interconnection Request ${queueId}${resourceType ? ` (${resourceType})` : ""}`,
+    name: `${entity} Interconnection Request ${queueId}${resourceType ? ` (${resourceType})` : ""}`,
     projectType: fuelType === "storage" ? "storage" : "generation",
     fuelType,
-    state: get("state") ? String(get("state")) : null,
-    county: get("county") ? String(get("county")) : null,
+    // No lat/lon published — see module header.
+    state,
+    county,
     capacityValue: Number.isFinite(capacityMw) ? capacityMw : null,
     capacityUnit: "MW",
-    applicationFiledDate: queueDate && !Number.isNaN(queueDate.getTime()) ? queueDate : null,
+    applicationFiledDate: queueDate,
     dateConfidence: "exact",
-    currentStatus: `Interconnection queue status: ${status}`,
-    currentStage: queueStatusToStage(status),
+    currentStatus: `Interconnection queue status: active${iaPhase ? ` (${iaPhase})` : ""}${region ? `, ${region} region` : ""}`,
+    currentStage: iaPhaseToStage(iaPhase),
     causeSlugs,
     causeDetail:
       "Sourced from LBNL's Queued Up interconnection queue dataset — this project is waiting on its grid operator's interconnection study/agreement process.",
@@ -170,41 +261,112 @@ export function normalizeQueuedUpRow(row: QueuedUpRow, fieldMap: FieldMap): Norm
     sources: [
       {
         label: "LBNL Queued Up (interconnection queue dataset)",
-        url: "https://emp.lbl.gov/queues",
+        url: LANDING_PAGE_URL,
       },
     ],
-    externalIds: { lbnl: queueId },
+    externalIds: { lbnl: `${entity}-${queueId}` },
   };
 }
 
-export async function ingestLbnlQueuedUp(filePath: string) {
-  const rows = parseWorkbook(filePath);
+export interface IngestSummary {
+  upserted: number;
+  skippedBelowFloor: number;
+  skippedNotActive: number;
+  skippedUnderConstruction: number;
+  errors: { matchKey: string; message: string }[];
+  sourceFileUrl?: string;
+}
+
+export async function ingestLbnlQueuedUpBuffer(
+  buf: Buffer,
+  minCapacityMw = MIN_CAPACITY_MW,
+): Promise<IngestSummary> {
+  const rows = parseWorkbookBuffer(buf);
   if (rows.length === 0) {
-    console.log("No rows found in workbook.");
-    return;
+    return { upserted: 0, skippedBelowFloor: 0, skippedNotActive: 0, skippedUnderConstruction: 0, errors: [] };
   }
   const headerRow = Object.keys(rows[0]);
   const fieldMap = resolveFieldMap(headerRow);
 
-  let count = 0;
+  let skippedBelowFloor = 0;
+  let skippedNotActive = 0;
+  let skippedUnderConstruction = 0;
+  const toUpsert: NormalizedProject[] = [];
+
   for (const row of rows) {
-    await upsertNormalizedProject(normalizeQueuedUpRow(row, fieldMap));
-    count += 1;
+    const status = String(row[fieldMap.status!] ?? "").toLowerCase();
+    if (status !== "active") {
+      skippedNotActive += 1;
+      continue;
+    }
+    // Per explicit product decision: only import LBNL rows still waiting on
+    // permitting/interconnection processes, not ones whose interconnection
+    // facilities are already under construction — see iaPhaseToStage.
+    const iaPhase = String(row[fieldMap.iaPhase!] ?? "").toLowerCase();
+    if (iaPhase.includes("construction")) {
+      skippedUnderConstruction += 1;
+      continue;
+    }
+    const capacity = Number(row[fieldMap.capacityMw!] ?? NaN);
+    if (!Number.isFinite(capacity) || capacity < minCapacityMw) {
+      skippedBelowFloor += 1;
+      continue;
+    }
+    toUpsert.push(normalizeQueuedUpRow(row, fieldMap));
   }
-  console.log(`LBNL Queued Up ingestion complete: upserted ${count} projects.`);
+
+  const { upserted, errors } = await upsertNormalizedProjects(toUpsert);
+
+  return { upserted, skippedBelowFloor, skippedNotActive, skippedUnderConstruction, errors };
+}
+
+export async function ingestLbnlQueuedUp(filePath: string, minCapacityMw = MIN_CAPACITY_MW): Promise<IngestSummary> {
+  return ingestLbnlQueuedUpBuffer(readFileSync(filePath), minCapacityMw);
+}
+
+// Scrapes the current .xlsx attachment link off the queues landing page —
+// see module header for why this can't be a predictable static URL.
+export async function findCurrentWorkbookUrl(): Promise<string> {
+  const res = await fetch(LANDING_PAGE_URL, { headers: BROWSER_HEADERS });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch ${LANDING_PAGE_URL}: ${res.status}`);
+  }
+  const html = await res.text();
+  const match = /href="([^"]+\.xlsx)"/i.exec(html);
+  if (!match) {
+    throw new Error(
+      `Could not find a .xlsx attachment link on ${LANDING_PAGE_URL} — LBNL may have restructured the page.`,
+    );
+  }
+  const href = match[1];
+  return href.startsWith("http") ? href : new URL(href, LANDING_PAGE_URL).toString();
+}
+
+export async function fetchAndIngestCurrentWorkbook(minCapacityMw = MIN_CAPACITY_MW): Promise<IngestSummary> {
+  const url = await findCurrentWorkbookUrl();
+  const res = await fetch(url, { headers: BROWSER_HEADERS });
+  if (!res.ok) throw new Error(`Failed to download ${url}: ${res.status}`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  const summary = await ingestLbnlQueuedUpBuffer(buf, minCapacityMw);
+  return { ...summary, sourceFileUrl: url };
 }
 
 if (require.main === module) {
   const filePath = process.argv[2] ?? process.env.LBNL_QUEUED_UP_XLSX_PATH;
-  if (!filePath) {
-    console.error(
-      "Usage: npx tsx src/lib/ingest/lbnlQueuedUp.ts <path-to-downloaded-workbook.xlsx>\n" +
-        "(or set LBNL_QUEUED_UP_XLSX_PATH). Download the workbook from https://emp.lbl.gov/queues first.",
-    );
-    process.exit(1);
-  }
-  ingestLbnlQueuedUp(filePath).catch((err) => {
-    console.error(err);
-    process.exit(1);
-  });
+  const run = filePath ? ingestLbnlQueuedUp(filePath) : fetchAndIngestCurrentWorkbook();
+  run
+    .then((summary) => {
+      console.log(
+        `LBNL Queued Up ingestion complete: upserted ${summary.upserted} projects ` +
+          `(skipped ${summary.skippedBelowFloor} below the ${MIN_CAPACITY_MW} MW floor, ` +
+          `${summary.skippedNotActive} non-active rows, ${summary.skippedUnderConstruction} already-under-construction rows, ` +
+          `${summary.errors.length} errors).` +
+          (summary.sourceFileUrl ? ` Source: ${summary.sourceFileUrl}` : ""),
+      );
+      if (summary.errors.length > 0) console.error(summary.errors);
+    })
+    .catch((err) => {
+      console.error(err);
+      process.exit(1);
+    });
 }

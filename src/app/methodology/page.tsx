@@ -151,7 +151,34 @@ export default function MethodologyPage() {
             including which federal agency is in the lead. We exclude projects already marked
             Complete or Cancelled.
           </li>
+          <li>
+            <strong>
+              <a href="https://emp.lbl.gov/queues" target="_blank" rel="noreferrer" className="underline">
+                LBNL Queued Up
+              </a>
+            </strong>{" "}
+            (Lawrence Berkeley National Laboratory, in partnership with GridTracker), published
+            annually. An interconnection queue dataset aggregated from 50+ grid operators — the
+            only source on this site that publishes a real date each project entered the queue,
+            which is what most of the &ldquo;time waiting&rdquo; figures on this site are built
+            from. We include only requests with an active queue status and at least 100 MW of
+            capacity. Licensed{" "}
+            <a
+              href="https://creativecommons.org/licenses/by/4.0/deed.en"
+              target="_blank"
+              rel="noreferrer"
+              className="underline"
+            >
+              CC BY 4.0
+            </a>
+            .
+          </li>
         </ul>
+        <p className="text-sm mt-4">
+          Because EIA-860M and the Permitting Dashboard don&rsquo;t publish an application-filed or
+          queue-entry date, projects sourced only from those two won&rsquo;t show a &ldquo;time
+          waiting&rdquo; figure unless LBNL Queued Up also has a matching interconnection request.
+        </p>
         <p className="text-sm mt-4 pt-4 border-t border-[var(--border)]">
           More sources are coming soon — our data and coverage are always growing, check back
           soon. See the repo&rsquo;s README for the full list of open questions, including

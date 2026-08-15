@@ -67,13 +67,26 @@ export interface NormalizedProject {
   externalIds: Record<string, string>;
 }
 
+// The suffix (derived from matchKey) is what actually guarantees
+// uniqueness when two projects share a name — it must never be truncated
+// away. Confirmed live 2026-08-15: LBNL entity names can be full utility
+// legal names (e.g. "Southern Indiana Gas & Electric Company d/b/a Vectren
+// Energy Delivery of Indiana, Inc."), long enough that the old
+// `${base}-${suffix}`.slice(0, 90) truncated the suffix off entirely,
+// collapsing every interconnection request for that entity onto one slug —
+// concurrent upserts for the "same" (colliding) project then raced on the
+// cause-tags delete/insert step and silently overwrote each other's data.
+// Reserve room for the suffix first, then fit as much of the base as
+// remains.
 function slugify(name: string, matchKey: string): string {
+  const suffix = matchKey.slice(-6).replace(/[^a-z0-9]/gi, "");
+  const maxBaseLength = Math.max(90 - 1 - suffix.length, 1);
   const base = name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-  const suffix = matchKey.slice(-6).replace(/[^a-z0-9]/gi, "");
-  return `${base}-${suffix}`.slice(0, 90);
+    .replace(/(^-|-$)/g, "")
+    .slice(0, maxBaseLength);
+  return `${base}-${suffix}`;
 }
 
 /**

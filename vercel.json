@@ -8,6 +8,10 @@
     {
       "path": "/api/cron/ingest-permitting-dashboard",
       "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/ingest-lbnl",
+      "schedule": "0 15 * * *"
     }
   ]
 }

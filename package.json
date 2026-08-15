@@ -10,7 +10,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "ingest:eia": "tsx src/lib/ingest/eia860mPlanned.ts",
-    "ingest:permitting-dashboard": "tsx src/lib/ingest/permittingDashboard.ts"
+    "ingest:permitting-dashboard": "tsx src/lib/ingest/permittingDashboard.ts",
+    "ingest:lbnl": "tsx src/lib/ingest/lbnlQueuedUp.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.3.0",
