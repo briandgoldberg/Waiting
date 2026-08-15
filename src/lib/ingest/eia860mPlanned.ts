@@ -116,13 +116,13 @@ function extractStatusCode(status: string): string {
   return m ? m[1] : "";
 }
 
-function statusToStage(code: string): ProjectStage {
-  if (code === "U" || code === "V" || code === "TS") return "under_construction";
-  // "agency_permitting" is a rough default for pre-construction planned
-  // generators — this source alone can't tell us whether the real
-  // bottleneck is interconnection, NEPA, or something else. Cross-reference
-  // with the Permitting Dashboard / LBNL Queued Up (or a manual override)
-  // to refine, same caveat as eia.ts carried.
+// Always "agency_permitting" — U/V/TS (under construction) rows never
+// reach here, filtered out earlier in normalizeEiaPlannedRow. This is
+// still a rough default for the remaining pre-construction statuses
+// (P/L/T) — this source alone can't tell us whether the real bottleneck is
+// interconnection, NEPA, or something else. Cross-reference with the
+// Permitting Dashboard / LBNL Queued Up (or a manual override) to refine.
+function statusToStage(_code: string): ProjectStage {
   return "agency_permitting";
 }
 
@@ -159,9 +159,18 @@ export function normalizeEiaPlannedRow(row: PlannedRow, fieldMap: FieldMap): Nor
   };
 
   const statusCode = extractStatusCode(String(get("status") ?? ""));
-  // Drop the occasional stray already-operating row and anything with no
-  // recognized status at all, rather than mis-classifying it as "waiting."
-  if (!statusCode || statusCode === "OP") return null;
+  // Drop the occasional stray already-operating row, anything with no
+  // recognized status, and already-under-construction projects (U/V/TS) —
+  // per explicit product decision, this site tracks projects "waiting for
+  // approval," and a project mid-construction has already cleared that
+  // hurdle even if it still faces other real delays. EIA-860M's "Planned"
+  // tab includes the whole pipeline from not-yet-started through
+  // construction-complete-not-yet-online, so this is a meaningful filter,
+  // not an edge case — roughly 30% of EIA-sourced projects at the 250 MW
+  // floor were U/V/TS as of 2026-08-15.
+  if (!statusCode || statusCode === "OP" || statusCode === "U" || statusCode === "V" || statusCode === "TS") {
+    return null;
+  }
 
   const plantId = String(get("plantId") ?? "");
   const generatorId = String(get("generatorId") ?? "");
