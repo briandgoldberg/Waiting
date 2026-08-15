@@ -94,18 +94,24 @@ export function Map({ projects }: { projects: ProjectDTO[] }) {
     function trySetUpProjectLayers() {
       if (cancelled || map.getSource("projects")) return;
       attempts += 1;
-      if (!map.isStyleLoaded()) {
+
+      // isStyleLoaded()/loaded() are NOT used as the gate here — confirmed
+      // live in production that they can stay false forever even though
+      // addSource works fine. Just try it, and if the style genuinely
+      // isn't ready yet (it throws), retry shortly. This is what actually
+      // succeeds in the environment where the flags never flip.
+      try {
+        map.addSource("projects", {
+          type: "geojson",
+          data: toFeatureCollection(projectsRef.current) as GeoJSON.FeatureCollection,
+          cluster: true,
+          clusterMaxZoom: 8,
+          clusterRadius: 40,
+        });
+      } catch {
         if (attempts < 100) setTimeout(trySetUpProjectLayers, 100); // ~10s ceiling
         return;
       }
-
-      map.addSource("projects", {
-        type: "geojson",
-        data: toFeatureCollection(projectsRef.current) as GeoJSON.FeatureCollection,
-        cluster: true,
-        clusterMaxZoom: 8,
-        clusterRadius: 40,
-      });
 
       map.addLayer({
         id: "clusters",
