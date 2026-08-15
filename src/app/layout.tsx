@@ -26,7 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </Link>
             <nav className="flex flex-wrap items-center gap-1 text-sm">
               <Link href="/" className="px-3 py-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/10">
-                Map &amp; list
+                Home
               </Link>
               <Link
                 href="/policies"
@@ -46,11 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-900/40 text-amber-900 dark:text-amber-200">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 py-1.5 text-xs text-center">
             🚧 This site is under active construction — more projects and data sources are being
-            added regularly.{" "}
-            <Link href="/methodology" className="underline font-medium">
-              See what&rsquo;s live so far
-            </Link>
-            .
+            added regularly.
           </div>
         </div>
         <main className="flex-1 flex flex-col">{children}</main>
