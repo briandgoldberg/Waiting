@@ -116,8 +116,8 @@ export default function MethodologyPage() {
         <ul className="text-sm grid gap-1.5">
           <li>
             <strong>Project</strong> — name, as published by the source (EIA plant/generator name,
-            Permitting Dashboard project title, LBNL entity + queue ID, or hydropower project name +
-            FERC docket number).
+            Permitting Dashboard project title, LBNL entity + queue ID, hydropower project name +
+            FERC docket number, or pipeline project name + operator).
           </li>
           <li>
             <strong>Fuel</strong> — technology/fuel type (solar, wind, storage, gas, nuclear, hydro,
@@ -127,8 +127,9 @@ export default function MethodologyPage() {
           <li>
             <strong>Location</strong> — state and county. Most projects are geocoded to an exact
             site; LBNL-sourced projects are placed at their county centroid (see that source&rsquo;s
-            note below), and a small number of Permitting Dashboard projects with no published
-            coordinates won&rsquo;t appear on the map at all.
+            note below); a small number of Permitting Dashboard projects with no published
+            coordinates, and every pipeline project (which span multiple states with no single
+            site), won&rsquo;t appear on the map at all.
           </li>
           <li>
             <strong>Waiting</strong> — years since the published application-filed or
@@ -137,8 +138,8 @@ export default function MethodologyPage() {
           </li>
           <li>
             <strong>Capacity</strong> — nameplate MW for generation/storage/transmission, MTPA for
-            LNG, or a length/diameter descriptor for some pipelines; see each project&rsquo;s
-            &ldquo;data quality note&rdquo; when the unit isn&rsquo;t MW.
+            LNG, or MMcf/d of throughput for pipelines; see each project&rsquo;s &ldquo;data quality
+            note&rdquo; when the unit isn&rsquo;t MW.
           </li>
           <li>
             <strong>Stage</strong> — where the project sits in the permitting/interconnection
@@ -278,15 +279,38 @@ export default function MethodologyPage() {
             (like LBNL Queued Up) contributes real &ldquo;time waiting&rdquo; figures. We exclude
             projects whose relicense has already been issued, and license-surrender applications (a
             project leaving FERC&rsquo;s process, not waiting on approval within it). Contributes far
-            fewer projects than the other three sources: most FERC-licensed hydro projects are small
+            fewer projects than the other sources: most FERC-licensed hydro projects are small
             municipal or private dams below this site&rsquo;s 250 MW floor.
+          </li>
+          <li>
+            <strong>
+              <a
+                href="https://www.eia.gov/naturalgas/data.php"
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
+                EIA Natural Gas Pipeline Projects
+              </a>
+            </strong>{" "}
+            tracker, published quarterly. An analyst-maintained list of announced, filed, and
+            on-hold interstate and intrastate natural gas pipeline projects — the main source of
+            pipeline coverage on this site, broader than the handful of pipeline projects that
+            happen to be FAST-41 &ldquo;covered projects&rdquo; on the Permitting Dashboard. No
+            capacity floor is applied (this workbook is itself a curated list of major projects,
+            not a raw firehose) and capacity is reported in MMcf/d of gas throughput, not MW, so
+            it&rsquo;s excluded from this site&rsquo;s MW-based capacity totals. Pipelines span
+            multiple states with no single site, so these projects have no map coordinates and
+            won&rsquo;t appear on the map, only in the list view. No application-filed date is
+            published, so &ldquo;time waiting&rdquo; isn&rsquo;t computable for these projects
+            either.
           </li>
         </ul>
         <p className="text-sm mt-4">
-          Because EIA-860M and the Permitting Dashboard don&rsquo;t publish an application-filed or
-          queue-entry date, projects sourced only from those two won&rsquo;t show a &ldquo;time
-          waiting&rdquo; figure unless LBNL Queued Up or ORNL&rsquo;s hydropower relicensing dataset
-          also has a matching entry.
+          Because EIA-860M, the Permitting Dashboard, and the pipeline tracker don&rsquo;t publish
+          an application-filed or queue-entry date, projects sourced only from those three
+          won&rsquo;t show a &ldquo;time waiting&rdquo; figure unless LBNL Queued Up or ORNL&rsquo;s
+          hydropower relicensing dataset also has a matching entry.
         </p>
         <p className="text-sm mt-4 pt-4 border-t border-[var(--border)]">
           More sources are coming soon — our data and coverage are always growing, check back
@@ -313,7 +337,7 @@ export default function MethodologyPage() {
           </li>
           <li>
             <strong>Federal Permitting Dashboard</strong> — checked daily at 14:00 UTC against a
-            live queryable API, not a periodic file, so this is the closest of the four to
+            live queryable API, not a periodic file, so this is the closest of the five to
             real-time: whatever the Permitting Council&rsquo;s data reflects is picked up within a
             day.
           </li>
@@ -326,6 +350,11 @@ export default function MethodologyPage() {
           <li>
             <strong>ORNL HydroSource hydropower relicensing</strong> — checked daily at 16:00 UTC,
             same rationale as LBNL Queued Up: ORNL republishes this dataset about once a year too.
+          </li>
+          <li>
+            <strong>EIA Natural Gas Pipeline Projects tracker</strong> — checked daily at 17:00
+            UTC. EIA republishes this one roughly quarterly; same rationale as the two annual
+            sources above.
           </li>
         </ul>
         <p className="text-sm mt-3">

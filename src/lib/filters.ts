@@ -8,13 +8,14 @@ import { PROJECT_STAGE_BY_VALUE } from "@/lib/data/taxonomies";
 // src/lib/ingest/common.ts header). Derived here from each ingestion
 // module's own stable `sources[].label` text so users can filter by which
 // pipeline a project came from, without adding a new DB column for it.
-export type SourceKey = "eia" | "permittingDashboard" | "lbnl" | "ornlHydro" | "other";
+export type SourceKey = "eia" | "permittingDashboard" | "lbnl" | "ornlHydro" | "eiaPipelines" | "other";
 
 const SOURCE_LABEL_PATTERNS: [SourceKey, RegExp][] = [
   ["eia", /EIA-860M/i],
   ["permittingDashboard", /Federal Permitting Dashboard/i],
   ["lbnl", /LBNL Queued Up/i],
   ["ornlHydro", /ORNL HydroSource/i],
+  ["eiaPipelines", /EIA Natural Gas Pipeline/i],
 ];
 
 export function sourceKeyForProject(p: ProjectDTO): SourceKey {
@@ -30,6 +31,7 @@ export const SOURCE_OPTIONS: { value: SourceKey; label: string }[] = [
   { value: "permittingDashboard", label: "Federal Permitting Dashboard" },
   { value: "lbnl", label: "LBNL interconnection queue" },
   { value: "ornlHydro", label: "ORNL hydropower relicensing" },
+  { value: "eiaPipelines", label: "EIA pipeline projects" },
 ];
 
 export interface FilterState {

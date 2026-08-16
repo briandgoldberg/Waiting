@@ -13,20 +13,22 @@ sources that can be re-run and stay current on their own).
 | `permittingDashboard.ts` | Federal Permitting Dashboard (FAST-41) | Yes — public Socrata endpoint | None found needed | Daily cron (14:00 UTC), `/api/cron/ingest-permitting-dashboard` |
 | `lbnlQueuedUp.ts` | LBNL Queued Up | Yes — annual Excel workbook, scraped off the landing page | None (no auth, just a browser-like User-Agent — see file header) | Daily cron (15:00 UTC), `/api/cron/ingest-lbnl`, even though LBNL itself only republishes ~annually — see file header for why a daily check still makes sense |
 | `ornlHydropowerRelicensing.ts` | ORNL HydroSource hydropower relicensing/license-surrender dataset | Yes — annual Excel workbook, edition-year page auto-discovered then scraped, same two-step pattern as LBNL | None (no auth, just a browser-like User-Agent) | Daily cron (16:00 UTC), `/api/cron/ingest-ornl-hydro`, same "cheap daily check of an annual source" rationale as LBNL |
+| `eiaPipelineProjects.ts` | EIA "Natural Gas Pipeline Projects" tracker | Yes — quarterly Excel workbook, scraped off the landing page (naming convention itself isn't consistent — see file header) | None (no auth) | Daily cron (17:00 UTC), `/api/cron/ingest-eia-pipelines` |
 | `eia.ts` | EIA API v2 `operating-generator-capacity` | Yes | Free API key | **Superseded, do not run** — see file header. This route only covers already-operating plants; `eia860mPlanned.ts` replaced it. |
 
-All four scheduled sources run via Vercel Cron (see `vercel.json`) with no
+All five scheduled sources run via Vercel Cron (see `vercel.json`) with no
 manual step required — "daily" bounds this site's staleness to ~24h behind
 whatever each source most recently published, it doesn't mean the source
-itself changes that often (EIA republishes monthly, LBNL and ORNL annually;
-only the Permitting Dashboard's live API is closer to real-time). Every
-ingestion run upserts by a stable per-source ID, so re-running a source
-updates existing projects in place rather than duplicating them.
+itself changes that often (EIA-860M republishes monthly, the EIA pipeline
+tracker ~quarterly, LBNL and ORNL annually; only the Permitting Dashboard's
+live API is closer to real-time). Every ingestion run upserts by a stable
+per-source ID, so re-running a source updates existing projects in place
+rather than duplicating them.
 
 Run a module directly with `npx tsx src/lib/ingest/<module>.ts` (or the
 `npm run ingest:eia` / `npm run ingest:permitting-dashboard` / `npm run
-ingest:lbnl` / `npm run ingest:ornl-hydro` scripts) for a manual run
-outside the cron schedule.
+ingest:lbnl` / `npm run ingest:ornl-hydro` / `npm run
+ingest:eia-pipelines` scripts) for a manual run outside the cron schedule.
 
 ## RESOLVED_STAGES: what never appears on the site
 
@@ -37,14 +39,15 @@ is excluded entirely, not just deprioritized. Enforced in one place
 (`upsertNormalizedProject`, `common.ts`) rather than per-module: any
 `NormalizedProject` whose `currentStage` is one of `RESOLVED_STAGES`
 (`src/lib/data/taxonomies.ts`) gets deleted (if it previously existed) and
-is never created. `eia860mPlanned.ts` and `permittingDashboard.ts` both
-normalize *every* row — including already-approved/cancelled/operating
-ones — and let this shared guard decide, specifically so a project this
-site previously tracked as waiting gets removed the moment a source
-reports it's moved on, rather than freezing in a stale "still waiting"
-state forever. `lbnlQueuedUp.ts` and `ornlHydropowerRelicensing.ts` still
-filter these rows out *before* normalizing (see open question #9) — a
-narrower, currently-safe gap, not the same guarantee.
+is never created. `eia860mPlanned.ts`, `permittingDashboard.ts`, and
+`eiaPipelineProjects.ts` all normalize *every* row — including
+already-approved/cancelled/operating ones — and let this shared guard
+decide, specifically so a project this site previously tracked as waiting
+gets removed the moment a source reports it's moved on, rather than
+freezing in a stale "still waiting" state forever. `lbnlQueuedUp.ts` and
+`ornlHydropowerRelicensing.ts` still filter these rows out *before*
+normalizing (see open question #9) — a narrower, currently-safe gap, not
+the same guarantee.
 
 ## Open questions (flagged, not guessed at)
 
@@ -76,12 +79,12 @@ argument rests on data credibility shouldn't paper over gaps in that data.
    data — it's the whole point of the site's timeline feature — but it's
    likely behind the token-gated `/api/v1/project/{id}` endpoint mentioned
    in the dashboard's own docs, which hasn't been registered for.
-4. **Permitting Dashboard, EIA-860M & ORNL hydropower relicensing: no
-   cause-category field.** None of the three tells you *why* a project is
-   delayed in terms of this site's seven categories. All three modules ship
-   every ingested project with `causeSlugs: []` and a note that it needs
-   manual/derived assignment — deliberately, rather than guessing a
-   plausible-sounding default.
+4. **Permitting Dashboard, EIA-860M, ORNL hydropower relicensing & EIA's
+   pipeline tracker: no cause-category field.** None of the four tells you
+   *why* a project is delayed in terms of this site's seven categories. All
+   four modules ship every ingested project with `causeSlugs: []` and a
+   note that it needs manual/derived assignment — deliberately, rather
+   than guessing a plausible-sounding default.
 5. **EIA-860M has no application-filed date either** — only a planned
    in-service date — so "days/years waiting" can't be computed for
    EIA-sourced projects without a manual override.
@@ -122,3 +125,14 @@ argument rests on data credibility shouldn't paper over gaps in that data.
    gap is real for whenever the next annual edition ships. Bringing both in
    line with `eia860mPlanned.ts` / `permittingDashboard.ts` (normalize
    every row, let `common.ts` decide) is the follow-up.
+10. **EIA's pipeline projects tracker's filename convention isn't
+    consistent** — confirmed 2026-08-16, most historical archive links use
+    `EIA-NaturalGasPipelineProjects_<Mon><YYYY>.xlsx` (leading underscore,
+    inconsistent month abbreviations across editions) but the current live
+    one is `EIA-NaturalGasPipelineProjectsAug2026.xlsx` (no underscore).
+    `eiaPipelineProjects.ts` scrapes the landing page for the current link
+    rather than guessing a filename, so this shouldn't break ingestion, but
+    it means a predictable-URL approach (like `eia860mPlanned.ts` uses)
+    isn't viable for this source. Also has no capacity floor and no
+    lat/lon (pipelines span multiple states) — both explicit product
+    decisions, see the file header for the reasoning.

@@ -50,8 +50,9 @@ per-source table, open questions, and how each is scheduled:
 | Federal Permitting Dashboard (FAST-41) | `src/lib/ingest/permittingDashboard.ts` | Daily cron (14:00 UTC), `/api/cron/ingest-permitting-dashboard` | Live API — no periodic file, effectively real-time |
 | LBNL Queued Up | `src/lib/ingest/lbnlQueuedUp.ts` | Daily cron (15:00 UTC), `/api/cron/ingest-lbnl` | ~Annual |
 | ORNL HydroSource hydropower relicensing | `src/lib/ingest/ornlHydropowerRelicensing.ts` | Daily cron (16:00 UTC), `/api/cron/ingest-ornl-hydro` | ~Annual |
+| EIA Natural Gas Pipeline Projects tracker | `src/lib/ingest/eiaPipelineProjects.ts` | Daily cron (17:00 UTC), `/api/cron/ingest-eia-pipelines` | ~Quarterly |
 
-All four run on Vercel Cron (`vercel.json`) with no manual step — "daily" means this site never
+All five run on Vercel Cron (`vercel.json`) with no manual step — "daily" means this site never
 lags more than ~24h behind whatever each source most recently published, not that each source
 itself updates that often. Every ingestion run upserts by a stable per-source ID, so a re-run
 updates existing projects in place instead of duplicating them.
@@ -60,11 +61,14 @@ Every ingested project links back to its public source (see each project's
 detail page). Where a date or figure wasn't confidently available, the
 project is marked `dateConfidence: "approximate"` or carries a
 `dataQualityNote` saying so, rather than presenting invented precision as
-fact. Notably absent so far: most pipeline and sub-250MW projects (see
+fact. Notably absent so far: sub-250MW generation/storage projects (see
 each source's capacity floor / scope above — this includes the large
 majority of hydropower relicensing dockets, which skew small), and any
 cause-category assignment for automatically-ingested projects (none of the
-four sources publishes *why* a project is delayed — see open question #4).
+five sources publishes *why* a project is delayed — see open question #4).
+This site only tracks projects still waiting on approval — see
+"RESOLVED_STAGES" in `src/lib/ingest/README.md` for what's deliberately
+excluded and why.
 
 ## Open questions
 
@@ -93,11 +97,12 @@ per-data-source version of this list.
    used — that data likely exists behind the token-gated
    `/api/v1/project/{id}` endpoint mentioned in the dashboard's own docs,
    which wasn't registered for in this pass.
-4. **EIA, the Permitting Dashboard, and ORNL's hydropower relicensing
-   dataset don't publish a cause category.** Every project ingested from
-   any of the three ships with `causeSlugs: []` and an explicit note that
-   it needs manual/derived assignment, rather than a guessed default. (LBNL
-   Queued Up is the exception — every row it produces is tagged
+4. **EIA-860M, the Permitting Dashboard, ORNL's hydropower relicensing
+   dataset, and EIA's pipeline projects tracker don't publish a cause
+   category.** Every project ingested from any of the four ships with
+   `causeSlugs: []` and an explicit note that it needs manual/derived
+   assignment, rather than a guessed default. (LBNL Queued Up is the
+   exception — every row it produces is tagged
    `interconnection_queue_backlog`, since that's definitionally what an
    interconnection queue entry is waiting on.)
 5. **LBNL Queued Up and ORNL hydropower relicensing column names are
