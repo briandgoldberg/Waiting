@@ -9,14 +9,24 @@ sources that can be re-run and stay current on their own).
 
 | Module | Source | Live API? | Auth needed | Scheduled? |
 |---|---|---|---|---|
-| `eia860mPlanned.ts` | EIA-860M "Planned" generator inventory | Yes — monthly Excel workbook, auto-discovered | Free API key not required for this module (see `eia.ts` below for the one that does) | Daily cron, `/api/cron/ingest-eia` |
-| `permittingDashboard.ts` | Federal Permitting Dashboard (FAST-41) | Yes — public Socrata endpoint | None found needed | Daily cron, `/api/cron/ingest-permitting-dashboard` |
-| `lbnlQueuedUp.ts` | LBNL Queued Up | No — annual Excel download | None (manual download) | Not yet — no cron, needs a human to fetch the file each year |
+| `eia860mPlanned.ts` | EIA-860M "Planned" generator inventory | Yes — monthly Excel workbook, auto-discovered | Free API key not required for this module (see `eia.ts` below for the one that does) | Daily cron (13:00 UTC), `/api/cron/ingest-eia` |
+| `permittingDashboard.ts` | Federal Permitting Dashboard (FAST-41) | Yes — public Socrata endpoint | None found needed | Daily cron (14:00 UTC), `/api/cron/ingest-permitting-dashboard` |
+| `lbnlQueuedUp.ts` | LBNL Queued Up | Yes — annual Excel workbook, scraped off the landing page | None (no auth, just a browser-like User-Agent — see file header) | Daily cron (15:00 UTC), `/api/cron/ingest-lbnl`, even though LBNL itself only republishes ~annually — see file header for why a daily check still makes sense |
+| `ornlHydropowerRelicensing.ts` | ORNL HydroSource hydropower relicensing/license-surrender dataset | Yes — annual Excel workbook, edition-year page auto-discovered then scraped, same two-step pattern as LBNL | None (no auth, just a browser-like User-Agent) | Daily cron (16:00 UTC), `/api/cron/ingest-ornl-hydro`, same "cheap daily check of an annual source" rationale as LBNL |
 | `eia.ts` | EIA API v2 `operating-generator-capacity` | Yes | Free API key | **Superseded, do not run** — see file header. This route only covers already-operating plants; `eia860mPlanned.ts` replaced it. |
 
+All four scheduled sources run via Vercel Cron (see `vercel.json`) with no
+manual step required — "daily" bounds this site's staleness to ~24h behind
+whatever each source most recently published, it doesn't mean the source
+itself changes that often (EIA republishes monthly, LBNL and ORNL annually;
+only the Permitting Dashboard's live API is closer to real-time). Every
+ingestion run upserts by a stable per-source ID, so re-running a source
+updates existing projects in place rather than duplicating them.
+
 Run a module directly with `npx tsx src/lib/ingest/<module>.ts` (or the
-`npm run ingest:eia` / `npm run ingest:permitting-dashboard` scripts) for a
-manual run outside the cron schedule.
+`npm run ingest:eia` / `npm run ingest:permitting-dashboard` / `npm run
+ingest:lbnl` / `npm run ingest:ornl-hydro` scripts) for a manual run
+outside the cron schedule.
 
 ## Open questions (flagged, not guessed at)
 
@@ -48,24 +58,34 @@ argument rests on data credibility shouldn't paper over gaps in that data.
    data — it's the whole point of the site's timeline feature — but it's
    likely behind the token-gated `/api/v1/project/{id}` endpoint mentioned
    in the dashboard's own docs, which hasn't been registered for.
-4. **Permitting Dashboard & EIA-860M: no cause-category field.** Neither
-   source tells you *why* a project is delayed in terms of this site's
-   seven categories. Both modules ship every ingested project with
-   `causeSlugs: []` and a note that it needs manual/derived assignment —
-   deliberately, rather than guessing a plausible-sounding default.
+4. **Permitting Dashboard, EIA-860M & ORNL hydropower relicensing: no
+   cause-category field.** None of the three tells you *why* a project is
+   delayed in terms of this site's seven categories. All three modules ship
+   every ingested project with `causeSlugs: []` and a note that it needs
+   manual/derived assignment — deliberately, rather than guessing a
+   plausible-sounding default.
 5. **EIA-860M has no application-filed date either** — only a planned
    in-service date — so "days/years waiting" can't be computed for
    EIA-sourced projects without a manual override.
-6. **LBNL Queued Up column names are unverified against a real downloaded
-   workbook.** The parser was written from familiarity with past editions
-   of the codebook and fails loudly (naming the missing column) rather than
-   silently misreading a shifted one. Check the current workbook's own
-   codebook tab before relying on it.
+6. **LBNL Queued Up and ORNL hydropower relicensing column names are
+   unverified against a future downloaded workbook.** Both parsers were
+   written from familiarity with past/current editions of their respective
+   codebooks and fail loudly (naming the missing column) rather than
+   silently misreading a shifted one. Check each workbook's own
+   codebook/field-descriptions tab before relying on either after a new
+   annual edition ships.
 7. **Redistribution terms aren't fully confirmed for any source.** Federal
    (.gov) data is generally public domain under 17 U.S.C. §105, consistent
    with default federal open-data licensing norms, but no dataset-specific
-   terms page was found for `data.permits.performance.gov` or the EIA API,
-   and LBNL's Queued Up dataset asks for citation in a way that reads like
-   an academic norm, not a formal license. Get an explicit answer per
-   source before redistributing bulk data via this site's own API at
-   scale.
+   terms page was found for `data.permits.performance.gov` or the EIA API;
+   LBNL's Queued Up dataset asks for citation in a way that reads like an
+   academic norm, not a formal license; and ORNL HydroSource's Data Use
+   Policy wasn't independently confirmed as a formal redistribution
+   license either. Get an explicit answer per source before redistributing
+   bulk data via this site's own API at scale.
+8. **ORNL hydropower relicensing skews far smaller than this site's other
+   sources.** Only 17 of the 200 currently-waiting relicensing dockets
+   clear the 250 MW floor (as of the 2026 edition) — most FERC-licensed
+   hydro projects are small municipal or private dams. That's expected,
+   not a bug, but it means this source contributes a much thinner slice of
+   real projects than EIA-860M or LBNL Queued Up do.

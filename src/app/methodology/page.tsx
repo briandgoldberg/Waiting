@@ -1,5 +1,5 @@
 import { CAPITAL_COST_USD_PER_KW } from "@/lib/calc/investmentWaiting";
-import { FUEL_TYPE_BY_VALUE, ZERO_CARBON_FUELS } from "@/lib/data/taxonomies";
+import { FUEL_TYPE_BY_VALUE, PROJECT_STAGES, ZERO_CARBON_FUELS } from "@/lib/data/taxonomies";
 
 export default function MethodologyPage() {
   return (
@@ -108,6 +108,85 @@ export default function MethodologyPage() {
       </section>
 
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">
+        <h2 className="text-lg font-semibold mb-2">Fields shown on this site</h2>
+        <p className="text-sm mb-3">
+          The list view, map, project detail pages, and CSV export all draw from the same
+          underlying fields for every project:
+        </p>
+        <ul className="text-sm grid gap-1.5">
+          <li>
+            <strong>Project</strong> — name, as published by the source (EIA plant/generator name,
+            Permitting Dashboard project title, LBNL entity + queue ID, or hydropower project name +
+            FERC docket number).
+          </li>
+          <li>
+            <strong>Fuel</strong> — technology/fuel type (solar, wind, storage, gas, nuclear, hydro,
+            etc.), color-coded to match the map. Inferred from title keywords (not a structured
+            field) for Permitting Dashboard-sourced projects — see that source&rsquo;s note below.
+          </li>
+          <li>
+            <strong>Location</strong> — state and county. Most projects are geocoded to an exact
+            site; LBNL-sourced projects are placed at their county centroid (see that source&rsquo;s
+            note below), and a small number of Permitting Dashboard projects with no published
+            coordinates won&rsquo;t appear on the map at all.
+          </li>
+          <li>
+            <strong>Waiting</strong> — years since the published application-filed or
+            interconnection-request date; see &ldquo;Days / years waiting&rdquo; above. Shows
+            &ldquo;—&rdquo; when no source has published that date for the project.
+          </li>
+          <li>
+            <strong>Capacity</strong> — nameplate MW for generation/storage/transmission, MTPA for
+            LNG, or a length/diameter descriptor for some pipelines; see each project&rsquo;s
+            &ldquo;data quality note&rdquo; when the unit isn&rsquo;t MW.
+          </li>
+          <li>
+            <strong>Stage</strong> — where the project sits in the permitting/interconnection
+            process; see &ldquo;Project stage&rdquo; below for what each value means and which
+            source can produce it.
+          </li>
+          <li>
+            <strong>Source</strong> — which of the four data pipelines below ingested this project.
+            Derived from the project&rsquo;s citation link, not a stored field — see &ldquo;Data
+            &amp; sourcing&rdquo; below.
+          </li>
+        </ul>
+        <p className="text-sm mt-3">
+          Every project also carries a verification status, one or more source links, and (where a
+          source published one) a data quality note — all visible on the project&rsquo;s own page,
+          even when not shown as a column in the list view. CSV export additionally includes
+          project type and cause category slugs, which aren&rsquo;t shown as table columns.
+        </p>
+      </section>
+
+      <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">
+        <h2 className="text-lg font-semibold mb-2">Project stage</h2>
+        <p className="text-sm mb-3">
+          &ldquo;Stage&rdquo; is a single bucket meant to answer &ldquo;roughly where is this
+          project in the process?&rdquo; at a glance. Two of the values below —{" "}
+          <strong>Planned, approvals not yet initiated</strong> and{" "}
+          <strong>Regulatory approvals pending (Category L)</strong> — map directly to status codes
+          EIA-860M itself publishes on every &ldquo;Planned&rdquo; generator: EIA calls these{" "}
+          <code>(P)</code> and <code>(L)</code> respectively, and <code>(L)</code> is EIA&rsquo;s
+          own &ldquo;Category L&rdquo; — &ldquo;Regulatory approvals pending. Not under
+          construction.&rdquo; A third EIA code, <code>(T)</code> &ldquo;Regulatory approvals
+          received, not under construction,&rdquo; is folded into the existing{" "}
+          <strong>Approved, awaiting construction</strong> stage rather than given its own bucket,
+          since that&rsquo;s exactly what it means. Every other stage below is a best-effort
+          default assigned from whichever source ingested the project — see each source&rsquo;s
+          entry above for what it can and can&rsquo;t tell us about a project&rsquo;s real
+          bottleneck.
+        </p>
+        <ul className="text-sm grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          {PROJECT_STAGES.map((s) => (
+            <li key={s.value}>
+              <strong>{s.label}</strong>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">
         <h2 className="text-lg font-semibold mb-2">Data &amp; sourcing</h2>
         <p className="text-sm mb-4">
           Every project on this site comes from one of the public data sources below, refreshed on
@@ -133,7 +212,9 @@ export default function MethodologyPage() {
             proposed U.S. generation and storage capacity — location, capacity, technology, and
             status for every planned generator above a 250 MW capacity floor. We exclude
             generators already reported under construction, since this site tracks projects still
-            waiting for approval, not ones that have already cleared that hurdle.
+            waiting for approval, not ones that have already cleared that hurdle. EIA&rsquo;s own
+            status codes for the rest of the pipeline map directly to this site&rsquo;s stage
+            values — see &ldquo;Project stage&rdquo; above, including &ldquo;Category L.&rdquo;
           </li>
           <li>
             <strong>
@@ -161,8 +242,8 @@ export default function MethodologyPage() {
             annually. An interconnection queue dataset aggregated from 50+ grid operators — the
             only source on this site that publishes a real date each project entered the queue,
             which is what most of the &ldquo;time waiting&rdquo; figures on this site are built
-            from. We include only requests with an active queue status and at least 100 MW of
-            capacity. Licensed{" "}
+            from. We include only requests with an active queue status and at least 250 MW of
+            capacity, matching the site-wide capacity floor also used for EIA-860M. Licensed{" "}
             <a
               href="https://creativecommons.org/licenses/by/4.0/deed.en"
               target="_blank"
@@ -173,17 +254,81 @@ export default function MethodologyPage() {
             </a>
             .
           </li>
+          <li>
+            <strong>
+              <a
+                href="https://hydrosource.ornl.gov/data/datasets/"
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
+                ORNL HydroSource
+              </a>
+            </strong>{" "}
+            hydropower relicensing dataset (Oak Ridge National Laboratory, built from FERC&rsquo;s
+            own relicensing docket data), published annually. Every FERC-licensed hydropower
+            project currently in relicensing — either an application already pending before FERC,
+            or a licensee that has filed its required notice of intent to relicense but not yet the
+            full application. Publishes a real per-project filing date and exact coordinates, so
+            (like LBNL Queued Up) contributes real &ldquo;time waiting&rdquo; figures. We exclude
+            projects whose relicense has already been issued, and license-surrender applications (a
+            project leaving FERC&rsquo;s process, not waiting on approval within it). Contributes far
+            fewer projects than the other three sources: most FERC-licensed hydro projects are small
+            municipal or private dams below this site&rsquo;s 250 MW floor.
+          </li>
         </ul>
         <p className="text-sm mt-4">
           Because EIA-860M and the Permitting Dashboard don&rsquo;t publish an application-filed or
           queue-entry date, projects sourced only from those two won&rsquo;t show a &ldquo;time
-          waiting&rdquo; figure unless LBNL Queued Up also has a matching interconnection request.
+          waiting&rdquo; figure unless LBNL Queued Up or ORNL&rsquo;s hydropower relicensing dataset
+          also has a matching entry.
         </p>
         <p className="text-sm mt-4 pt-4 border-t border-[var(--border)]">
           More sources are coming soon — our data and coverage are always growing, check back
           soon. See the repo&rsquo;s README for the full list of open questions, including
           cross-source project identity matching and data source terms of use, flagged rather
           than silently guessed at.
+        </p>
+      </section>
+
+      <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">
+        <h2 className="text-lg font-semibold mb-2">How current is this data?</h2>
+        <p className="text-sm mb-3">
+          Every source above runs on an automated daily job (Vercel Cron) — there is no manual,
+          hand-curated data on this site. A daily check doesn&rsquo;t mean each source itself
+          publishes daily; it means this site never lags more than about a day behind whatever the
+          source most recently published:
+        </p>
+        <ul className="text-sm flex flex-col gap-2">
+          <li>
+            <strong>EIA-860M</strong> — checked daily at 13:00 UTC. EIA itself republishes the
+            &ldquo;Planned&rdquo; workbook monthly, with roughly a two-month publication lag on
+            EIA&rsquo;s end; most daily checks simply find the same file already ingested and
+            no-op.
+          </li>
+          <li>
+            <strong>Federal Permitting Dashboard</strong> — checked daily at 14:00 UTC against a
+            live queryable API, not a periodic file, so this is the closest of the four to
+            real-time: whatever the Permitting Council&rsquo;s data reflects is picked up within a
+            day.
+          </li>
+          <li>
+            <strong>LBNL Queued Up</strong> — checked daily at 15:00 UTC. LBNL republishes this
+            dataset only about once a year; daily checking costs one cheap page fetch on the days
+            nothing&rsquo;s changed and guarantees a new edition is picked up within 24 hours of
+            release rather than waiting on a manual download.
+          </li>
+          <li>
+            <strong>ORNL HydroSource hydropower relicensing</strong> — checked daily at 16:00 UTC,
+            same rationale as LBNL Queued Up: ORNL republishes this dataset about once a year too.
+          </li>
+        </ul>
+        <p className="text-sm mt-3">
+          Every ingestion run upserts by a stable per-source ID, so re-running a source (on
+          schedule or by hand) updates existing projects in place rather than duplicating them.
+          &ldquo;Days / years waiting&rdquo; figures are computed live on every page load from the
+          stored filing date, not cached, so they&rsquo;re accurate to the minute even between
+          ingestion runs.
         </p>
       </section>
     </div>

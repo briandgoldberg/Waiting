@@ -44,20 +44,27 @@ that stay current on their own, rather than a snapshot that goes stale.
 See [`src/lib/ingest/README.md`](src/lib/ingest/README.md) for the full
 per-source table, open questions, and how each is scheduled:
 
-| Source | Module | Scheduled? |
-|---|---|---|
-| EIA-860M "Planned" generator inventory | `src/lib/ingest/eia860mPlanned.ts` | Daily cron, `/api/cron/ingest-eia` |
-| Federal Permitting Dashboard (FAST-41) | `src/lib/ingest/permittingDashboard.ts` | Daily cron, `/api/cron/ingest-permitting-dashboard` |
-| LBNL Queued Up | `src/lib/ingest/lbnlQueuedUp.ts` | Not yet — needs a manually-downloaded annual file |
+| Source | Module | Checked | Source's own publish cadence |
+|---|---|---|---|
+| EIA-860M "Planned" generator inventory | `src/lib/ingest/eia860mPlanned.ts` | Daily cron (13:00 UTC), `/api/cron/ingest-eia` | Monthly, ~2-month lag on EIA's end |
+| Federal Permitting Dashboard (FAST-41) | `src/lib/ingest/permittingDashboard.ts` | Daily cron (14:00 UTC), `/api/cron/ingest-permitting-dashboard` | Live API — no periodic file, effectively real-time |
+| LBNL Queued Up | `src/lib/ingest/lbnlQueuedUp.ts` | Daily cron (15:00 UTC), `/api/cron/ingest-lbnl` | ~Annual |
+| ORNL HydroSource hydropower relicensing | `src/lib/ingest/ornlHydropowerRelicensing.ts` | Daily cron (16:00 UTC), `/api/cron/ingest-ornl-hydro` | ~Annual |
+
+All four run on Vercel Cron (`vercel.json`) with no manual step — "daily" means this site never
+lags more than ~24h behind whatever each source most recently published, not that each source
+itself updates that often. Every ingestion run upserts by a stable per-source ID, so a re-run
+updates existing projects in place instead of duplicating them.
 
 Every ingested project links back to its public source (see each project's
 detail page). Where a date or figure wasn't confidently available, the
 project is marked `dateConfidence: "approximate"` or carries a
 `dataQualityNote` saying so, rather than presenting invented precision as
-fact. Notably absent so far: individual LBNL interconnection-queue
-projects, hydropower relicensing detail, and any cause-category assignment
-for automatically-ingested projects (neither EIA nor the Permitting
-Dashboard publishes *why* a project is delayed — see open question #4).
+fact. Notably absent so far: most pipeline and sub-250MW projects (see
+each source's capacity floor / scope above — this includes the large
+majority of hydropower relicensing dockets, which skew small), and any
+cause-category assignment for automatically-ingested projects (none of the
+four sources publishes *why* a project is delayed — see open question #4).
 
 ## Open questions
 
@@ -86,22 +93,29 @@ per-data-source version of this list.
    used — that data likely exists behind the token-gated
    `/api/v1/project/{id}` endpoint mentioned in the dashboard's own docs,
    which wasn't registered for in this pass.
-4. **EIA and the Permitting Dashboard don't publish a cause category.**
-   Every project ingested from either source ships with `causeSlugs: []`
-   and an explicit note that it needs manual/derived assignment, rather
-   than a guessed default.
-5. **LBNL Queued Up column names are unverified against a real downloaded
-   workbook** — the parser was written from familiarity with past editions
-   of the codebook and fails loudly (naming the missing column) rather than
+4. **EIA, the Permitting Dashboard, and ORNL's hydropower relicensing
+   dataset don't publish a cause category.** Every project ingested from
+   any of the three ships with `causeSlugs: []` and an explicit note that
+   it needs manual/derived assignment, rather than a guessed default. (LBNL
+   Queued Up is the exception — every row it produces is tagged
+   `interconnection_queue_backlog`, since that's definitionally what an
+   interconnection queue entry is waiting on.)
+5. **LBNL Queued Up and ORNL hydropower relicensing column names are
+   unverified against a future downloaded workbook** — both parsers were
+   written from familiarity with past/current editions of their respective
+   codebooks and fail loudly (naming the missing column) rather than
    silently misreading a shifted one. Check the current workbook's own
-   codebook tab before relying on it.
+   codebook/field-descriptions tab before relying on either after a new
+   annual edition ships.
 6. **Redistribution terms aren't fully confirmed for any source.** Federal
    (.gov) data is generally public domain under 17 U.S.C. §105, consistent
    with default federal open-data licensing norms, but no dataset-specific
-   terms page was found for `data.permits.performance.gov` or the EIA API,
-   and LBNL's Queued Up asks for citation in a way that reads like an
-   academic norm, not a formal license. Get an explicit answer per source
-   before redistributing bulk data via this site's own API at scale.
+   terms page was found for `data.permits.performance.gov` or the EIA API;
+   LBNL's Queued Up asks for citation in a way that reads like an academic
+   norm, not a formal license; and ORNL HydroSource links a Data Use Policy
+   whose exact redistribution terms weren't independently confirmed either.
+   Get an explicit answer per source before redistributing bulk data via
+   this site's own API at scale.
 7. **Investment-waiting only covers generation/storage projects with MW
    capacity and a published construction-cost figure.** Transmission,
    pipeline, and LNG projects show "not estimated" rather than a number

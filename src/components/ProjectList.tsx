@@ -3,10 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { ProjectDTO } from "@/lib/types";
-import { formatCapacity } from "@/lib/data/taxonomies";
+import { FUEL_TYPE_BY_VALUE, formatCapacity, PROJECT_STAGE_BY_VALUE } from "@/lib/data/taxonomies";
+import { SOURCE_OPTIONS, sourceKeyForProject } from "@/lib/filters";
 
-type SortKey = "name" | "location" | "daysWaiting" | "capacity";
+type SortKey = "name" | "fuel" | "location" | "daysWaiting" | "capacity" | "stage" | "source";
 type SortDir = "asc" | "desc";
+
+function sourceLabel(p: ProjectDTO): string {
+  return SOURCE_OPTIONS.find((o) => o.value === sourceKeyForProject(p))?.label ?? "Other";
+}
 
 function exportCsv(projects: ProjectDTO[]) {
   const header = [
@@ -21,6 +26,7 @@ function exportCsv(projects: ProjectDTO[]) {
     "current_stage",
     "cause_slugs",
     "verification_status",
+    "data_source",
   ];
   const rows = projects.map((p) => [
     p.name,
@@ -34,6 +40,7 @@ function exportCsv(projects: ProjectDTO[]) {
     p.currentStage,
     p.causeSlugs.join("|"),
     p.verificationStatus,
+    sourceLabel(p),
   ]);
   const csv = [header, ...rows]
     .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
@@ -66,6 +73,11 @@ export function ProjectList({ projects }: { projects: ProjectDTO[] }) {
       case "name":
         cmp = a.name.localeCompare(b.name);
         break;
+      case "fuel":
+        cmp = (FUEL_TYPE_BY_VALUE[a.fuelType]?.label ?? a.fuelType).localeCompare(
+          FUEL_TYPE_BY_VALUE[b.fuelType]?.label ?? b.fuelType,
+        );
+        break;
       case "location":
         cmp = (a.state ?? "").localeCompare(b.state ?? "");
         break;
@@ -75,15 +87,24 @@ export function ProjectList({ projects }: { projects: ProjectDTO[] }) {
       case "capacity":
         cmp = (a.capacityValue ?? -1) - (b.capacityValue ?? -1);
         break;
+      case "stage":
+        cmp = a.currentStage.localeCompare(b.currentStage);
+        break;
+      case "source":
+        cmp = sourceLabel(a).localeCompare(sourceLabel(b));
+        break;
     }
     return sortDir === "asc" ? cmp : -cmp;
   });
 
   const columns: { key: SortKey; label: string }[] = [
     { key: "name", label: "Project" },
+    { key: "fuel", label: "Fuel" },
     { key: "location", label: "Location" },
     { key: "daysWaiting", label: "Waiting" },
     { key: "capacity", label: "Capacity" },
+    { key: "stage", label: "Stage" },
+    { key: "source", label: "Source" },
   ];
 
   return (
@@ -123,6 +144,15 @@ export function ProjectList({ projects }: { projects: ProjectDTO[] }) {
                     <span className="ml-2 text-[10px] text-[var(--muted)]">(aggregate)</span>
                   )}
                 </td>
+                <td className="px-4 py-2.5 whitespace-nowrap">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span
+                      className="inline-block h-2 w-2 rounded-full"
+                      style={{ backgroundColor: FUEL_TYPE_BY_VALUE[p.fuelType]?.color ?? "#6b7280" }}
+                    />
+                    {FUEL_TYPE_BY_VALUE[p.fuelType]?.label ?? p.fuelType}
+                  </span>
+                </td>
                 <td className="px-4 py-2.5 whitespace-nowrap">{p.state ?? "—"}</td>
                 <td className="px-4 py-2.5 whitespace-nowrap tabular-nums">
                   {p.yearsWaiting != null ? `${p.yearsWaiting.toFixed(1)} yrs` : "—"}
@@ -130,6 +160,10 @@ export function ProjectList({ projects }: { projects: ProjectDTO[] }) {
                 <td className="px-4 py-2.5 whitespace-nowrap tabular-nums">
                   {formatCapacity(p.capacityValue, p.capacityUnit)}
                 </td>
+                <td className="px-4 py-2.5 whitespace-nowrap">
+                  {PROJECT_STAGE_BY_VALUE[p.currentStage] ?? p.currentStage.replace(/_/g, " ")}
+                </td>
+                <td className="px-4 py-2.5 whitespace-nowrap text-[var(--muted)]">{sourceLabel(p)}</td>
               </tr>
             ))}
           </tbody>

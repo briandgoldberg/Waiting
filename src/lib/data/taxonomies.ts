@@ -68,6 +68,8 @@ export type ProjectStage =
   | "interconnection_study"
   | "environmental_review"
   | "agency_permitting"
+  | "planned_pre_filing"
+  | "regulatory_approvals_pending"
   | "local_review"
   | "litigation"
   | "approved_awaiting_construction"
@@ -75,9 +77,18 @@ export type ProjectStage =
   | "cancelled"
   | "completed";
 
+// planned_pre_filing and regulatory_approvals_pending map directly to
+// EIA-860M's own "Planned" tab status codes (P) and (L) respectively — see
+// statusToStage in src/lib/ingest/eia860mPlanned.ts. (L) is EIA's own
+// "Category L" ("Regulatory approvals pending. Not under construction");
+// kept namewise-parallel to EIA's letter so it's traceable back to the
+// source, and labeled with "Category L" in the UI since that's how EIA and
+// this site's users refer to it.
 export const PROJECT_STAGES: { value: ProjectStage; label: string }[] = [
   { value: "interconnection_study", label: "Interconnection study" },
   { value: "environmental_review", label: "Environmental review" },
+  { value: "planned_pre_filing", label: "Planned, approvals not yet initiated" },
+  { value: "regulatory_approvals_pending", label: "Regulatory approvals pending (Category L)" },
   { value: "agency_permitting", label: "Agency permitting" },
   { value: "local_review", label: "Local/state review" },
   { value: "litigation", label: "Litigation" },
@@ -86,6 +97,10 @@ export const PROJECT_STAGES: { value: ProjectStage; label: string }[] = [
   { value: "cancelled", label: "Cancelled" },
   { value: "completed", label: "Completed" },
 ];
+
+export const PROJECT_STAGE_BY_VALUE: Record<ProjectStage, string> = Object.fromEntries(
+  PROJECT_STAGES.map(({ value, label }) => [value, label]),
+) as Record<ProjectStage, string>;
 
 export type VerificationStatus =
   | "verified"

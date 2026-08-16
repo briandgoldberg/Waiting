@@ -11,7 +11,8 @@
     "prisma:migrate": "prisma migrate dev",
     "ingest:eia": "tsx src/lib/ingest/eia860mPlanned.ts",
     "ingest:permitting-dashboard": "tsx src/lib/ingest/permittingDashboard.ts",
-    "ingest:lbnl": "tsx src/lib/ingest/lbnlQueuedUp.ts"
+    "ingest:lbnl": "tsx src/lib/ingest/lbnlQueuedUp.ts",
+    "ingest:ornl-hydro": "tsx src/lib/ingest/ornlHydropowerRelicensing.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.3.0",

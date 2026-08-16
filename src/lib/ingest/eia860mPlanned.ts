@@ -120,14 +120,29 @@ function extractStatusCode(status: string): string {
   return m ? m[1] : "";
 }
 
-// Always "agency_permitting" — U/V/TS (under construction) rows never
-// reach here, filtered out earlier in normalizeEiaPlannedRow. This is
-// still a rough default for the remaining pre-construction statuses
-// (P/L/T) — this source alone can't tell us whether the real bottleneck is
-// interconnection, NEPA, or something else. Cross-reference with the
-// Permitting Dashboard / LBNL Queued Up (or a manual override) to refine.
-function statusToStage(_code: string): ProjectStage {
-  return "agency_permitting";
+// U/V/TS (under construction) rows never reach here, filtered out earlier
+// in normalizeEiaPlannedRow. Of the remaining pre-construction statuses,
+// EIA-860M's own three codes already distinguish exactly where a project
+// sits — (P) not yet filed, (L) "Category L" (approvals pending, not under
+// construction), (T) approvals received but not yet building — so map them
+// straight through instead of collapsing all three into one generic
+// "agency_permitting" bucket. Confirmed 2026-08-15: prior to this, every
+// EIA-sourced row landed in agency_permitting regardless of P/L/T, which is
+// exactly why the Stage column/filter were pulled from the UI as
+// low-signal (see git history on ProjectList.tsx / filters.ts) — this
+// restores real signal. Any other/unrecognized code still falls back to
+// agency_permitting rather than guessing.
+function statusToStage(code: string): ProjectStage {
+  switch (code) {
+    case "P":
+      return "planned_pre_filing";
+    case "L":
+      return "regulatory_approvals_pending";
+    case "T":
+      return "approved_awaiting_construction";
+    default:
+      return "agency_permitting";
+  }
 }
 
 interface PlannedRow {

@@ -1,11 +1,44 @@
 import type { ProjectDTO } from "@/lib/types";
-import type { FuelType, ProjectType } from "@/lib/data/taxonomies";
+import type { FuelType, ProjectStage, ProjectType } from "@/lib/data/taxonomies";
+import { PROJECT_STAGE_BY_VALUE } from "@/lib/data/taxonomies";
+
+// Not a stored field — this site doesn't have one canonical "source" column
+// per project (a project's `sources` array is label+url pairs meant for
+// citation, and cross-source matching isn't automated, see
+// src/lib/ingest/common.ts header). Derived here from each ingestion
+// module's own stable `sources[].label` text so users can filter by which
+// pipeline a project came from, without adding a new DB column for it.
+export type SourceKey = "eia" | "permittingDashboard" | "lbnl" | "ornlHydro" | "other";
+
+const SOURCE_LABEL_PATTERNS: [SourceKey, RegExp][] = [
+  ["eia", /EIA-860M/i],
+  ["permittingDashboard", /Federal Permitting Dashboard/i],
+  ["lbnl", /LBNL Queued Up/i],
+  ["ornlHydro", /ORNL HydroSource/i],
+];
+
+export function sourceKeyForProject(p: ProjectDTO): SourceKey {
+  const label = p.sources[0]?.label ?? "";
+  for (const [key, pattern] of SOURCE_LABEL_PATTERNS) {
+    if (pattern.test(label)) return key;
+  }
+  return "other";
+}
+
+export const SOURCE_OPTIONS: { value: SourceKey; label: string }[] = [
+  { value: "eia", label: "EIA-860M" },
+  { value: "permittingDashboard", label: "Federal Permitting Dashboard" },
+  { value: "lbnl", label: "LBNL interconnection queue" },
+  { value: "ornlHydro", label: "ORNL hydropower relicensing" },
+];
 
 export interface FilterState {
   minYearsWaiting: number | null; // e.g. 1, 3, 5 quick presets, or null = no minimum
   fuelTypes: FuelType[];
   projectTypes: ProjectType[];
   minCapacity: number | null; // e.g. 250, 500, 1000 MW quick presets, or null = no minimum
+  stages: ProjectStage[];
+  sourceKeys: SourceKey[];
 }
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -13,6 +46,8 @@ export const DEFAULT_FILTERS: FilterState = {
   fuelTypes: [],
   projectTypes: [],
   minCapacity: null,
+  stages: [],
+  sourceKeys: [],
 };
 
 export function hasActiveFilters(f: FilterState): boolean {
@@ -20,7 +55,9 @@ export function hasActiveFilters(f: FilterState): boolean {
     f.minYearsWaiting != null ||
     f.fuelTypes.length > 0 ||
     f.projectTypes.length > 0 ||
-    f.minCapacity != null
+    f.minCapacity != null ||
+    f.stages.length > 0 ||
+    f.sourceKeys.length > 0
   );
 }
 
@@ -31,6 +68,8 @@ export function matchesFilters(p: ProjectDTO, f: FilterState): boolean {
   if (f.fuelTypes.length > 0 && !f.fuelTypes.includes(p.fuelType)) return false;
   if (f.projectTypes.length > 0 && !f.projectTypes.includes(p.projectType)) return false;
   if (f.minCapacity != null && (p.capacityValue == null || p.capacityValue < f.minCapacity)) return false;
+  if (f.stages.length > 0 && !f.stages.includes(p.currentStage)) return false;
+  if (f.sourceKeys.length > 0 && !f.sourceKeys.includes(sourceKeyForProject(p))) return false;
   return true;
 }
 
@@ -68,6 +107,20 @@ export function buildChips(f: FilterState): FilterChip[] {
       key: "capacity",
       label: `${f.minCapacity.toLocaleString("en-US")}+ MW`,
       onRemove: (state) => ({ ...state, minCapacity: null }),
+    });
+  }
+  for (const st of f.stages) {
+    chips.push({
+      key: `stage-${st}`,
+      label: PROJECT_STAGE_BY_VALUE[st],
+      onRemove: (state) => ({ ...state, stages: state.stages.filter((x) => x !== st) }),
+    });
+  }
+  for (const sk of f.sourceKeys) {
+    chips.push({
+      key: `source-${sk}`,
+      label: SOURCE_OPTIONS.find((o) => o.value === sk)?.label ?? sk,
+      onRemove: (state) => ({ ...state, sourceKeys: state.sourceKeys.filter((x) => x !== sk) }),
     });
   }
   return chips;

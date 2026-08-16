@@ -1,8 +1,9 @@
 "use client";
 
-import { FUEL_TYPES, PROJECT_TYPES } from "@/lib/data/taxonomies";
-import type { FilterState } from "@/lib/filters";
-import type { FuelType, ProjectType } from "@/lib/data/taxonomies";
+import { FUEL_TYPES, PROJECT_STAGES, PROJECT_TYPES } from "@/lib/data/taxonomies";
+import { SOURCE_OPTIONS } from "@/lib/filters";
+import type { FilterState, SourceKey } from "@/lib/filters";
+import type { FuelType, ProjectStage, ProjectType } from "@/lib/data/taxonomies";
 
 function toggle<T>(arr: T[], value: T): T[] {
   return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
@@ -115,6 +116,36 @@ export function FilterPanel({
               }
             >
               {n.toLocaleString("en-US")}+ MW
+            </Pill>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Stage">
+        <div className="flex flex-wrap gap-1.5">
+          {PROJECT_STAGES.map((s) => (
+            <Pill
+              key={s.value}
+              active={filters.stages.includes(s.value)}
+              onClick={() => onChange({ ...filters, stages: toggle<ProjectStage>(filters.stages, s.value) })}
+            >
+              {s.label}
+            </Pill>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Data source">
+        <div className="flex flex-wrap gap-1.5">
+          {SOURCE_OPTIONS.map((s) => (
+            <Pill
+              key={s.value}
+              active={filters.sourceKeys.includes(s.value)}
+              onClick={() =>
+                onChange({ ...filters, sourceKeys: toggle<SourceKey>(filters.sourceKeys, s.value) })
+              }
+            >
+              {s.label}
             </Pill>
           ))}
         </div>

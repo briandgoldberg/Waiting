@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { serializeProject } from "@/lib/serialize";
 import type { ProjectDTO } from "@/lib/types";
-import { FUEL_TYPE_BY_VALUE, formatCapacity } from "@/lib/data/taxonomies";
+import { FUEL_TYPE_BY_VALUE, formatCapacity, PROJECT_STAGE_BY_VALUE } from "@/lib/data/taxonomies";
 import { formatUsd } from "@/lib/calc/investmentWaiting";
 import { ShareButtons } from "@/components/ShareButtons";
 
@@ -100,7 +100,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Stat label="Capacity" value={formatCapacity(p.capacityValue, p.capacityUnit)} />
         <Stat label="Waiting" value={p.yearsWaiting != null ? `${p.yearsWaiting.toFixed(1)} yrs` : "—"} />
-        <Stat label="Stage" value={p.currentStage.replace(/_/g, " ")} />
+        <Stat label="Stage" value={PROJECT_STAGE_BY_VALUE[p.currentStage] ?? p.currentStage.replace(/_/g, " ")} />
         <Stat
           label="Verification"
           value={p.verificationStatus.replace(/_/g, " ")}

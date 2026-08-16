@@ -52,7 +52,8 @@ model Project {
 
   currentStatus String
 
-  // interconnection_study | environmental_review | agency_permitting |
+  // interconnection_study | environmental_review | planned_pre_filing |
+  // regulatory_approvals_pending (EIA "Category L") | agency_permitting |
   // local_review | litigation | approved_awaiting_construction |
   // under_construction | cancelled | completed
   currentStage String
