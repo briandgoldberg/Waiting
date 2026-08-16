@@ -28,6 +28,24 @@ Run a module directly with `npx tsx src/lib/ingest/<module>.ts` (or the
 ingest:lbnl` / `npm run ingest:ornl-hydro` scripts) for a manual run
 outside the cron schedule.
 
+## RESOLVED_STAGES: what never appears on the site
+
+This site tracks projects still waiting on a regulatory yes — a project
+that's already been approved and is awaiting construction, is under
+construction, was cancelled/withdrawn, or is already operating/completed
+is excluded entirely, not just deprioritized. Enforced in one place
+(`upsertNormalizedProject`, `common.ts`) rather than per-module: any
+`NormalizedProject` whose `currentStage` is one of `RESOLVED_STAGES`
+(`src/lib/data/taxonomies.ts`) gets deleted (if it previously existed) and
+is never created. `eia860mPlanned.ts` and `permittingDashboard.ts` both
+normalize *every* row — including already-approved/cancelled/operating
+ones — and let this shared guard decide, specifically so a project this
+site previously tracked as waiting gets removed the moment a source
+reports it's moved on, rather than freezing in a stale "still waiting"
+state forever. `lbnlQueuedUp.ts` and `ornlHydropowerRelicensing.ts` still
+filter these rows out *before* normalizing (see open question #9) — a
+narrower, currently-safe gap, not the same guarantee.
+
 ## Open questions (flagged, not guessed at)
 
 These are called out here — and inline in each module — instead of being
@@ -89,3 +107,18 @@ argument rests on data credibility shouldn't paper over gaps in that data.
    hydro projects are small municipal or private dams. That's expected,
    not a bug, but it means this source contributes a much thinner slice of
    real projects than EIA-860M or LBNL Queued Up do.
+9. **LBNL Queued Up and ORNL hydropower relicensing don't get the full
+   RESOLVED_STAGES cleanup guarantee the other two sources do** (see
+   "RESOLVED_STAGES" above). Both still filter out already-cleared rows
+   (withdrawn/operational/suspended queue entries; IA-executed/pending/
+   under-construction phases; issued relicenses; exemption conversions)
+   *before* ever calling `normalize*Row`, rather than normalizing them with
+   their real terminal stage and letting the shared guard delete a stale
+   row. Practically: if a project either module previously tracked as
+   waiting later shows up in a new annual edition with a cleared status,
+   it will keep displaying on the site in its last-known waiting state
+   until someone notices and fixes this — audited 2026-08-16 and confirmed
+   zero rows from either source are currently in that stale state, but the
+   gap is real for whenever the next annual edition ships. Bringing both in
+   line with `eia860mPlanned.ts` / `permittingDashboard.ts` (normalize
+   every row, let `common.ts` decide) is the follow-up.

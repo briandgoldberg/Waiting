@@ -22,6 +22,7 @@
 import { prisma } from "@/lib/db";
 import type { CauseSlug } from "@/lib/data/causeCategories";
 import type { FuelType, ProjectStage, ProjectType } from "@/lib/data/taxonomies";
+import { RESOLVED_STAGES } from "@/lib/data/taxonomies";
 
 export interface NormalizedSource {
   label: string;
@@ -95,9 +96,24 @@ function slugify(name: string, matchKey: string): string {
  * concept, not part of the public schema), we look up by slug derived from
  * it. Verified/ingested projects always get verificationStatus="verified" —
  * this path is never used for user submissions (see src/app/api/submissions).
+ *
+ * RESOLVED_STAGES ENFORCEMENT: if `p.currentStage` is one of
+ * RESOLVED_STAGES (approved/under construction/cancelled/completed — see
+ * taxonomies.ts), this site doesn't track it. Rather than silently
+ * declining to create it (which would leave a stale row behind for a
+ * project a *previous* ingestion run had tracked as still-waiting, now
+ * that it's cleared/cancelled/finished), this deletes any existing row for
+ * that slug and returns null without creating a new one — so a project
+ * that transitions out of "waiting" between ingestion runs disappears from
+ * the site rather than freezing in its last-known waiting state.
  */
 export async function upsertNormalizedProject(p: NormalizedProject) {
   const slug = slugify(p.name, p.matchKey);
+
+  if (RESOLVED_STAGES.includes(p.currentStage)) {
+    await prisma.project.deleteMany({ where: { slug } });
+    return null;
+  }
 
   const project = await prisma.project.upsert({
     where: { slug },
@@ -183,8 +199,9 @@ export async function upsertNormalizedProject(p: NormalizedProject) {
 export async function upsertNormalizedProjects(
   projects: NormalizedProject[],
   concurrency = 40,
-): Promise<{ upserted: number; errors: { matchKey: string; message: string }[] }> {
+): Promise<{ upserted: number; removedResolved: number; errors: { matchKey: string; message: string }[] }> {
   let upserted = 0;
+  let removedResolved = 0;
   const errors: { matchKey: string; message: string }[] = [];
 
   for (let i = 0; i < projects.length; i += concurrency) {
@@ -193,12 +210,19 @@ export async function upsertNormalizedProjects(
     for (let j = 0; j < results.length; j++) {
       const result = results[j];
       if (result.status === "fulfilled") {
-        upserted += 1;
+        // null means RESOLVED_STAGES caught this one — see
+        // upsertNormalizedProject: it was deleted (or never existed), not
+        // created/updated, so it shouldn't count toward "upserted".
+        if (result.value === null) {
+          removedResolved += 1;
+        } else {
+          upserted += 1;
+        }
       } else {
         errors.push({ matchKey: batch[j].matchKey, message: String(result.reason) });
       }
     }
   }
 
-  return { upserted, errors };
+  return { upserted, removedResolved, errors };
 }

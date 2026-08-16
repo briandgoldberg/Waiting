@@ -98,6 +98,32 @@ export const PROJECT_STAGES: { value: ProjectStage; label: string }[] = [
   { value: "completed", label: "Completed" },
 ];
 
+// This site tracks projects still waiting on a regulatory yes — a project
+// that has already cleared approval, started construction, been
+// cancelled, or finished is no longer "waiting" by definition (see
+// README's framing). Per explicit product decision, these four stages are
+// excluded from the site entirely rather than just deprioritized: no
+// ingestion module may create a project in one of these stages, and
+// upsertNormalizedProject (src/lib/ingest/common.ts) deletes any
+// previously-tracked project whose stage transitions into one of these on
+// a later ingestion run, rather than leaving a stale "still waiting" row
+// behind. See PROJECT_STAGES above for their labels — kept defined (not
+// deleted from the type) since they're still meaningful values a source
+// can report, just not ones this site displays.
+export const RESOLVED_STAGES: ProjectStage[] = [
+  "approved_awaiting_construction",
+  "under_construction",
+  "cancelled",
+  "completed",
+];
+
+// PROJECT_STAGES filtered to the stages a project can actually have on
+// this site — for filter-pill UI, so users never see a filter option that
+// always returns zero results.
+export const TRACKED_PROJECT_STAGES = PROJECT_STAGES.filter(
+  (s) => !RESOLVED_STAGES.includes(s.value),
+);
+
 export const PROJECT_STAGE_BY_VALUE: Record<ProjectStage, string> = Object.fromEntries(
   PROJECT_STAGES.map(({ value, label }) => [value, label]),
 ) as Record<ProjectStage, string>;

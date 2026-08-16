@@ -1,5 +1,5 @@
 import { CAPITAL_COST_USD_PER_KW } from "@/lib/calc/investmentWaiting";
-import { FUEL_TYPE_BY_VALUE, PROJECT_STAGES, ZERO_CARBON_FUELS } from "@/lib/data/taxonomies";
+import { FUEL_TYPE_BY_VALUE, TRACKED_PROJECT_STAGES, ZERO_CARBON_FUELS } from "@/lib/data/taxonomies";
 
 export default function MethodologyPage() {
   return (
@@ -169,21 +169,26 @@ export default function MethodologyPage() {
           EIA-860M itself publishes on every &ldquo;Planned&rdquo; generator: EIA calls these{" "}
           <code>(P)</code> and <code>(L)</code> respectively, and <code>(L)</code> is EIA&rsquo;s
           own &ldquo;Category L&rdquo; — &ldquo;Regulatory approvals pending. Not under
-          construction.&rdquo; A third EIA code, <code>(T)</code> &ldquo;Regulatory approvals
-          received, not under construction,&rdquo; is folded into the existing{" "}
-          <strong>Approved, awaiting construction</strong> stage rather than given its own bucket,
-          since that&rsquo;s exactly what it means. Every other stage below is a best-effort
-          default assigned from whichever source ingested the project — see each source&rsquo;s
-          entry above for what it can and can&rsquo;t tell us about a project&rsquo;s real
-          bottleneck.
+          construction.&rdquo; Every other stage below is a best-effort default assigned from
+          whichever source ingested the project — see each source&rsquo;s entry above for what it
+          can and can&rsquo;t tell us about a project&rsquo;s real bottleneck.
         </p>
         <ul className="text-sm grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-          {PROJECT_STAGES.map((s) => (
+          {TRACKED_PROJECT_STAGES.map((s) => (
             <li key={s.value}>
               <strong>{s.label}</strong>
             </li>
           ))}
         </ul>
+        <p className="text-sm mt-3 pt-3 border-t border-[var(--border)]">
+          Not shown: a project whose regulatory approval has already been granted, one that&rsquo;s
+          under construction, one that was cancelled/withdrawn, or one that&rsquo;s already
+          operating. This site tracks projects still waiting on a yes — a project that has cleared
+          that hurdle (for better or worse) is deliberately excluded rather than kept around in a
+          stale &ldquo;still waiting&rdquo; state. This is enforced at the data layer: when a
+          source reports a tracked project has moved into one of those states, it&rsquo;s removed
+          from the site on the next ingestion run, not just hidden.
+        </p>
       </section>
 
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">

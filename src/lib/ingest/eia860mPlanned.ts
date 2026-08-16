@@ -120,18 +120,24 @@ function extractStatusCode(status: string): string {
   return m ? m[1] : "";
 }
 
-// U/V/TS (under construction) rows never reach here, filtered out earlier
-// in normalizeEiaPlannedRow. Of the remaining pre-construction statuses,
-// EIA-860M's own three codes already distinguish exactly where a project
+// EIA-860M's own status codes already distinguish exactly where a project
 // sits — (P) not yet filed, (L) "Category L" (approvals pending, not under
-// construction), (T) approvals received but not yet building — so map them
-// straight through instead of collapsing all three into one generic
-// "agency_permitting" bucket. Confirmed 2026-08-15: prior to this, every
-// EIA-sourced row landed in agency_permitting regardless of P/L/T, which is
-// exactly why the Stage column/filter were pulled from the UI as
-// low-signal (see git history on ProjectList.tsx / filters.ts) — this
-// restores real signal. Any other/unrecognized code still falls back to
-// agency_permitting rather than guessing.
+// construction), (T) approvals received but not yet building, (U)/(V)
+// under construction at different completion thresholds, (TS) construction
+// complete but not yet in commercial operation, (OP) operating — so map
+// every recognized code straight through instead of collapsing them into
+// one generic "agency_permitting" bucket. Confirmed 2026-08-15: prior to
+// this, every EIA-sourced row landed in agency_permitting regardless of
+// P/L/T, which is exactly why the Stage column/filter were pulled from the
+// UI as low-signal (see git history on ProjectList.tsx / filters.ts) —
+// this restores real signal. T/U/V/TS/OP all map to one of
+// RESOLVED_STAGES (taxonomies.ts) — see normalizeEiaPlannedRow for why
+// they're passed through rather than silently dropped: the shared
+// upsertNormalizedProject guard needs to see a project's real current
+// stage to delete a stale "still waiting" row once a project it used to
+// track has since been approved, started construction, or gone live. Any
+// other/unrecognized code still falls back to agency_permitting rather
+// than guessing.
 function statusToStage(code: string): ProjectStage {
   switch (code) {
     case "P":
@@ -140,6 +146,12 @@ function statusToStage(code: string): ProjectStage {
       return "regulatory_approvals_pending";
     case "T":
       return "approved_awaiting_construction";
+    case "U":
+    case "V":
+      return "under_construction";
+    case "TS":
+    case "OP":
+      return "completed";
     default:
       return "agency_permitting";
   }
@@ -178,16 +190,21 @@ export function normalizeEiaPlannedRow(row: PlannedRow, fieldMap: FieldMap): Nor
   };
 
   const statusCode = extractStatusCode(String(get("status") ?? ""));
-  // Drop the occasional stray already-operating row, anything with no
-  // recognized status, and already-under-construction projects (U/V/TS) —
-  // per explicit product decision, this site tracks projects "waiting for
-  // approval," and a project mid-construction has already cleared that
-  // hurdle even if it still faces other real delays. EIA-860M's "Planned"
+  // Only drop rows with no recognized status at all — everything else
+  // (including already-operating/under-construction/approved rows) is
+  // normalized with its real stage below and left for the shared
+  // upsertNormalizedProject guard (RESOLVED_STAGES, src/lib/ingest/common.ts)
+  // to exclude/delete. This site tracks projects "waiting for approval,"
+  // and a project mid-construction (or already operating) has cleared that
+  // hurdle even if it still faces other real delays — but returning null
+  // here instead of letting the shared guard handle it would silently skip
+  // re-touching that row forever, leaving a stale "still waiting" project
+  // on the site even after the real project moved on. EIA-860M's "Planned"
   // tab includes the whole pipeline from not-yet-started through
-  // construction-complete-not-yet-online, so this is a meaningful filter,
-  // not an edge case — roughly 30% of EIA-sourced projects at the 250 MW
-  // floor were U/V/TS as of 2026-08-15.
-  if (!statusCode || statusCode === "OP" || statusCode === "U" || statusCode === "V" || statusCode === "TS") {
+  // construction-complete-not-yet-online, so this isn't an edge case —
+  // roughly 30% of EIA-sourced rows at the 250 MW floor were U/V/TS as of
+  // 2026-08-15.
+  if (!statusCode) {
     return null;
   }
 
@@ -238,7 +255,14 @@ export function normalizeEiaPlannedRow(row: PlannedRow, fieldMap: FieldMap): Nor
 export interface IngestSummary {
   upserted: number;
   skippedBelowFloor: number;
+  // Rows with no recognized status code at all — everything else
+  // (including already-operating/under-construction/approved rows) is
+  // normalized and handled by removedResolved below, not skipped here.
   skippedNotWaiting: number;
+  // Rows whose real stage is one of RESOLVED_STAGES (taxonomies.ts) —
+  // excluded from the site, and any previously-tracked row for the same
+  // project deleted. See upsertNormalizedProject in common.ts.
+  removedResolved: number;
   errors: { matchKey: string; message: string }[];
   sourceFileUrl?: string;
 }
@@ -249,7 +273,7 @@ export async function ingestEia860mPlannedBuffer(
 ): Promise<IngestSummary> {
   const rows = parseWorkbookBuffer(buf);
   if (rows.length === 0) {
-    return { upserted: 0, skippedBelowFloor: 0, skippedNotWaiting: 0, errors: [] };
+    return { upserted: 0, skippedBelowFloor: 0, skippedNotWaiting: 0, removedResolved: 0, errors: [] };
   }
   const headerRow = Object.keys(rows[0]);
   const fieldMap = resolveFieldMap(headerRow);
@@ -278,9 +302,9 @@ export async function ingestEia860mPlannedBuffer(
     toUpsert.push(normalized);
   }
 
-  const { upserted, errors } = await upsertNormalizedProjects(toUpsert);
+  const { upserted, removedResolved, errors } = await upsertNormalizedProjects(toUpsert);
 
-  return { upserted, skippedBelowFloor, skippedNotWaiting, errors };
+  return { upserted, skippedBelowFloor, skippedNotWaiting, removedResolved, errors };
 }
 
 export async function ingestEia860mPlanned(filePath: string, minCapacityMw = MIN_CAPACITY_MW): Promise<IngestSummary> {
@@ -368,7 +392,8 @@ if (require.main === module) {
       console.log(
         `EIA-860M Planned ingestion complete: upserted ${summary.upserted} projects ` +
           `(skipped ${summary.skippedBelowFloor} below the ${MIN_CAPACITY_MW} MW floor, ` +
-          `${summary.skippedNotWaiting} already-operating/unrecognized-status rows, ` +
+          `${summary.skippedNotWaiting} unrecognized-status rows, ` +
+          `excluded/removed ${summary.removedResolved} approved/under-construction/operating rows, ` +
           `${summary.errors.length} errors).`,
       );
       if (summary.errors.length > 0) console.error(summary.errors);

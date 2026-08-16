@@ -1,6 +1,6 @@
 "use client";
 
-import { FUEL_TYPES, PROJECT_STAGES, PROJECT_TYPES } from "@/lib/data/taxonomies";
+import { FUEL_TYPES, PROJECT_TYPES, TRACKED_PROJECT_STAGES } from "@/lib/data/taxonomies";
 import { SOURCE_OPTIONS } from "@/lib/filters";
 import type { FilterState, SourceKey } from "@/lib/filters";
 import type { FuelType, ProjectStage, ProjectType } from "@/lib/data/taxonomies";
@@ -123,7 +123,7 @@ export function FilterPanel({
 
       <Section title="Stage">
         <div className="flex flex-wrap gap-1.5">
-          {PROJECT_STAGES.map((s) => (
+          {TRACKED_PROJECT_STAGES.map((s) => (
             <Pill
               key={s.value}
               active={filters.stages.includes(s.value)}

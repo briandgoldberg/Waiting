@@ -131,12 +131,16 @@ interface DashboardRecord {
 // same end result.
 //
 // STATUS FILTER: of the 102 unique projects, 48 are "Complete" and 20 are
-// "Cancelled" — neither is "waiting" on anything anymore. Excluded, per
-// explicit product decision, leaving only In Progress / Planned / Paused
-// (34 projects as of 2026-08-15). Adjust EXCLUDED_STATUSES and re-run any
-// time — upserts are idempotent by project_id either way.
-const EXCLUDED_STATUSES = ["Complete", "Cancelled"];
-
+// "Cancelled" — neither is "waiting" on anything anymore. statusToStage
+// above already maps these to RESOLVED_STAGES ("completed"/"cancelled"),
+// so every row is normalized and passed to upsertNormalizedProjects rather
+// than filtered out here — the shared RESOLVED_STAGES guard
+// (src/lib/ingest/common.ts) excludes/deletes them, which also cleans up
+// a project this module previously tracked as still-waiting once it later
+// shows up as Complete/Cancelled here, rather than leaving a stale row.
+// Leaves In Progress / Planned / Paused (34 projects as of 2026-08-15)
+// actually displayed on the site.
+//
 // NOTE on cross-source identity matching (README open question #1): a
 // prior version of this file skipped project_ids 109441 (Grain Belt
 // Express), 95051 (SouthCoast Wind), and 74166 (Ocean Wind 1) as
@@ -163,7 +167,6 @@ async function fetchAll(): Promise<DashboardRecord[]> {
   const deduped: DashboardRecord[] = [];
   for (const row of rows) {
     if (seen.has(row.project_id)) continue;
-    if (EXCLUDED_STATUSES.includes(row.project_field_project_status ?? "")) continue;
     seen.add(row.project_id);
     deduped.push(row);
   }
@@ -213,12 +216,13 @@ export function normalizeDashboardRecord(r: DashboardRecord): NormalizedProject 
 export async function ingestPermittingDashboard() {
   const rows = await fetchAll();
   const normalized = rows.map(normalizeDashboardRecord);
-  const { upserted, errors } = await upsertNormalizedProjects(normalized);
+  const { upserted, removedResolved, errors } = await upsertNormalizedProjects(normalized);
   console.log(
-    `Permitting Dashboard ingestion complete: upserted ${upserted} projects (${errors.length} errors).`,
+    `Permitting Dashboard ingestion complete: upserted ${upserted} projects ` +
+      `(excluded/removed ${removedResolved} Complete/Cancelled/under-construction rows, ${errors.length} errors).`,
   );
   if (errors.length > 0) console.error(errors);
-  return { upserted, errors };
+  return { upserted, removedResolved, errors };
 }
 
 if (require.main === module) {
