@@ -32,8 +32,8 @@ export function AboutPanel() {
 
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5 flex flex-col gap-3 text-sm leading-relaxed">
         <p>
-          By day I&rsquo;m a software product manager; on the side I&rsquo;m an amateur economist
-          currently pursuing a master&rsquo;s in environmental economics.
+          I&rsquo;m an enterprise software product manager and amateur economist. Currently,
+          I&rsquo;m pursuing a master&rsquo;s in environmental economics.
         </p>
         <p>
           While I care deeply about environment, I consider myself politically moderate and
