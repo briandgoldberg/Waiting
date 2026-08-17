@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { InfoTabs } from "@/components/about/InfoTabs";
+import { MethodologyPanel } from "@/components/about/MethodologyPanel";
 
 export const metadata: Metadata = {
   title: "Methodology — WaitingForPower",
@@ -7,5 +7,9 @@ export const metadata: Metadata = {
 };
 
 export default function MethodologyPage() {
-  return <InfoTabs initialTab="methodology" />;
+  return (
+    <div className="mx-auto max-w-3xl w-full px-4 sm:px-6 py-6">
+      <MethodologyPanel />
+    </div>
+  );
 }

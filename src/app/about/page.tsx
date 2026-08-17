@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { InfoTabs } from "@/components/about/InfoTabs";
+import { AboutPanel } from "@/components/about/AboutPanel";
 
 export const metadata: Metadata = {
   title: "About — WaitingForPower",
@@ -7,5 +7,9 @@ export const metadata: Metadata = {
 };
 
 export default function AboutPage() {
-  return <InfoTabs initialTab="about" />;
+  return (
+    <div className="mx-auto max-w-3xl w-full px-4 sm:px-6 py-6">
+      <AboutPanel />
+    </div>
+  );
 }
