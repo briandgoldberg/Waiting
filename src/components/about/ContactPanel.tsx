@@ -44,7 +44,7 @@ export function ContactPanel() {
   if (status === "sent") {
     return (
       <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-6 text-center">
-        <h1 className="text-2xl font-bold tracking-tight mb-2">Thanks — got it.</h1>
+        <h2 className="text-2xl font-bold tracking-tight mb-2">Thanks — got it.</h2>
         <p className="text-sm text-[var(--muted)]">We&rsquo;ll get back to you soon.</p>
       </div>
     );
@@ -53,7 +53,7 @@ export function ContactPanel() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Contact us</h1>
+        <h2 className="text-2xl font-bold tracking-tight">Contact us</h2>
         <p className="text-sm text-[var(--muted)] mt-1">
           Found a bug, have feedback, want to add a project, or want to partner with us — reach
           out for any reason.

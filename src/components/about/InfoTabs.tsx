@@ -4,14 +4,12 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AboutPanel } from "./AboutPanel";
 import { MethodologyPanel } from "./MethodologyPanel";
-import { ContactPanel } from "./ContactPanel";
 
-type TabId = "about" | "methodology" | "contact";
+type TabId = "about" | "methodology";
 
 const TABS: { id: TabId; label: string; href: string }[] = [
   { id: "about", label: "About Us", href: "/about" },
   { id: "methodology", label: "Methodology", href: "/methodology" },
-  { id: "contact", label: "Contact Us", href: "/contact" },
 ];
 
 export function InfoTabs({ initialTab }: { initialTab: TabId }) {
@@ -27,7 +25,7 @@ export function InfoTabs({ initialTab }: { initialTab: TabId }) {
     <div className="mx-auto max-w-3xl w-full px-4 sm:px-6 py-6">
       <div
         role="tablist"
-        aria-label="About, methodology, and contact"
+        aria-label="About and methodology"
         className="flex gap-1 border-b border-[var(--border)] mb-6"
       >
         {TABS.map((t) => (
@@ -50,7 +48,6 @@ export function InfoTabs({ initialTab }: { initialTab: TabId }) {
 
       {tab === "about" && <AboutPanel />}
       {tab === "methodology" && <MethodologyPanel />}
-      {tab === "contact" && <ContactPanel />}
     </div>
   );
 }

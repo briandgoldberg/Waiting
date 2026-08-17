@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function ContactPage() {
-  return <InfoTabs initialTab="contact" />;
+  return <InfoTabs initialTab="about" />;
 }

@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { ContactPanel } from "./ContactPanel";
 
 export function AboutPanel() {
   return (
@@ -53,6 +54,8 @@ export function AboutPanel() {
           influenced how I think about this project a great deal.
         </p>
       </section>
+
+      <ContactPanel />
     </div>
   );
 }
