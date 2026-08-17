@@ -55,8 +55,8 @@ export function ContactPanel() {
       <div>
         <h2 className="text-2xl font-bold tracking-tight">I Want Your Feedback</h2>
         <p className="text-sm text-[var(--muted)] mt-1">
-          Found a bug, have feedback, want to add a project, or want to partner with us — reach
-          out for any reason.
+          Found a bug, have an enhancement idea, or want to partner with us — reach out for any
+          reason.
         </p>
       </div>
 
