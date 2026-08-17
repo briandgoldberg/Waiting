@@ -25,15 +25,10 @@ export function StatsHeader({
       help: (
         <>
           <p>
-            Every project matching your current filters, except regional-aggregate entries (like a
-            statewide or ISO-wide statistic standing in for many projects) — those would
-            double-count against the individual projects also shown, so they&rsquo;re excluded from
-            this count. Every source with a published capacity figure is held to a 250 MW floor —
-            this site tracks utility-scale projects, not small/distributed ones. A handful of
-            projects don&rsquo;t have a published capacity at all (the Federal Permitting
-            Dashboard doesn&rsquo;t report one); those are still counted rather than assumed
-            small, since FAST-41 &ldquo;covered project&rdquo; status is itself generally reserved
-            for large infrastructure.
+            Every project matching your current filters, held to a 250 MW utility-scale floor.
+            Regional-aggregate entries (e.g. a statewide stat standing in for many projects) are
+            excluded to avoid double-counting; projects missing a published capacity are still
+            counted.
           </p>
           {ex && (
             <ExampleNote>
