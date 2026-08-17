@@ -3,12 +3,21 @@
 import { useEffect, useRef } from "react";
 import maplibregl, { type Map as MaplibreMap } from "maplibre-gl";
 import type { ProjectDTO } from "@/lib/types";
-import { formatCapacity } from "@/lib/data/taxonomies";
+import { formatCapacity, FUEL_TYPE_BY_VALUE } from "@/lib/data/taxonomies";
 
-// Free, no-API-key vector basemap (CARTO's Voyager style, widely used with
-// MapLibre). Requires "© CARTO © OpenStreetMap contributors" attribution,
-// which MapLibre renders automatically from the style's own metadata.
-const MAP_STYLE = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
+// Free, no-API-key vector basemap (CARTO's Positron style — light and
+// minimal, so the colored fuel-type markers read clearly against it instead
+// of competing with Voyager's busier roads/labels/land-use colors).
+// Requires "© CARTO © OpenStreetMap contributors" attribution, which
+// MapLibre renders automatically from the style's own metadata.
+const MAP_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
+
+// This site only tracks U.S. projects — keep the map locked to North
+// America so there's never a reason to pan/zoom out to other continents.
+const US_MAX_BOUNDS: [[number, number], [number, number]] = [
+  [-180, 15], // southwest — wide enough for the Aleutians and Hawaii
+  [-60, 72], // northeast — wide enough for northern Alaska
+];
 
 // v2 of this component used a clustered GeoJSON source rendered as GL
 // circle layers. In production, pins never appeared on first load — only
@@ -31,8 +40,6 @@ function capacityRadius(p: ProjectDTO): number {
   }
   return 4;
 }
-
-const MARKER_COLOR = "#2563eb";
 
 function popupHtml(p: ProjectDTO): string {
   const capacityLabel = formatCapacity(p.capacityValue, p.capacityUnit);
@@ -68,10 +75,11 @@ export function Map({ projects }: { projects: ProjectDTO[] }) {
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: MAP_STYLE,
-      center: [-96, 39],
-      zoom: 3.4,
-      minZoom: 2,
+      center: [-98, 39],
+      zoom: 3.6,
+      minZoom: 2.5,
       maxZoom: 14,
+      maxBounds: US_MAX_BOUNDS,
     });
     mapRef.current = map;
 
@@ -100,11 +108,12 @@ export function Map({ projects }: { projects: ProjectDTO[] }) {
         if (p.lat == null || p.lon == null) continue;
 
         const size = capacityRadius(p) * 2;
+        const color = FUEL_TYPE_BY_VALUE[p.fuelType]?.color ?? "#6b7280";
         const el = document.createElement("div");
         el.style.cssText = `
           width:${size}px;height:${size}px;border-radius:50%;
-          background:${MARKER_COLOR};opacity:0.85;
-          border:1px solid #ffffff;box-shadow:0 1px 2px rgba(0,0,0,0.3);
+          background:${color};opacity:0.9;
+          border:1.5px solid #ffffff;box-shadow:0 1px 3px rgba(0,0,0,0.4);
           cursor:pointer;
         `;
         el.addEventListener("click", (e) => {
