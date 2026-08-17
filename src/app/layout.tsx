@@ -53,9 +53,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               >
                 Policies
               </Link>
-              <Link href="/methodology" className="px-3 py-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/10">
-                Methodology
-              </Link>
               <Link href="/about" className="px-3 py-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/10">
                 About Us
               </Link>
@@ -73,13 +70,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="mx-auto max-w-7xl px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-2">
             <p>
               WaitingForPower tracks U.S. energy projects of every fuel type — bipartisan,
-              structural, sourced.{" "}
-              <Link href="/methodology" className="underline">Methodology &amp; sources</Link>.
+              structural, sourced.
             </p>
             <div className="flex items-center gap-3">
-              <Link href="/contact" className="underline">
-                Contact us
-              </Link>
               <a
                 href="https://github.com/briandgoldberg/WaitingForPower"
                 target="_blank"
@@ -88,6 +81,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               >
                 Source on GitHub
               </a>
+              <Link href="/methodology" className="underline">
+                Methodology
+              </Link>
             </div>
           </div>
         </footer>
