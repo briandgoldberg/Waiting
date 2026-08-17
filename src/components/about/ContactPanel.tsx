@@ -53,7 +53,7 @@ export function ContactPanel() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Contact us</h2>
+        <h2 className="text-2xl font-bold tracking-tight">I Want Your Feedback</h2>
         <p className="text-sm text-[var(--muted)] mt-1">
           Found a bug, have feedback, want to add a project, or want to partner with us — reach
           out for any reason.

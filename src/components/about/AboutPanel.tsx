@@ -14,7 +14,7 @@ export function AboutPanel() {
         />
         <div className="flex flex-col gap-3">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">About</h1>
+            <h1 className="text-3xl font-bold tracking-tight">About Me</h1>
             <p className="text-sm text-[var(--muted)] mt-1">
               Hi, I&rsquo;m Brian Goldberg — I built WaitingForPower.
             </p>
