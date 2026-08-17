@@ -23,22 +23,30 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Pill({
   active,
   onClick,
+  color,
   children,
 }: {
   active: boolean;
   onClick: () => void;
+  color?: string;
   children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-colors ${
         active
           ? "bg-[var(--accent)] border-[var(--accent)] text-white"
           : "border-[var(--border)] hover:bg-black/5 dark:hover:bg-white/10"
       }`}
     >
+      {color && (
+        <span
+          className="inline-block h-2 w-2 rounded-full shrink-0"
+          style={{ backgroundColor: color }}
+        />
+      )}
       {children}
     </button>
   );
@@ -94,6 +102,7 @@ export function FilterPanel({
             <Pill
               key={f.value}
               active={filters.fuelTypes.includes(f.value)}
+              color={f.color}
               onClick={() => onChange({ ...filters, fuelTypes: toggle<FuelType>(filters.fuelTypes, f.value) })}
             >
               {f.label}
