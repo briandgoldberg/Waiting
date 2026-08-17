@@ -116,7 +116,7 @@ export function StatsHeader({
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
       {items.map((item) => (
         <div key={item.label} className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
-          <div className="text-2xl font-bold tabular-nums">{item.value}</div>
+          <div className="text-2xl font-bold">{item.value}</div>
           <div className="text-xs text-[var(--muted)] mt-0.5 flex items-center gap-1">
             {item.label}
             <HelpTooltip label={item.label}>{item.help}</HelpTooltip>
