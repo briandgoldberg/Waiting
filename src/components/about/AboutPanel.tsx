@@ -32,18 +32,12 @@ export function AboutPanel() {
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5 flex flex-col gap-3 text-sm leading-relaxed">
         <p>
           By day I&rsquo;m a software product manager; on the side I&rsquo;m an amateur economist
-          currently pursuing a master&rsquo;s in environmental economics. WaitingForPower sits at
-          the intersection of both — a data problem (where is U.S. energy infrastructure actually
-          stuck, and why?) in service of a policy argument I care a lot about.
+          currently pursuing a master&rsquo;s in environmental economics.
         </p>
         <p>
-          Politically, I&rsquo;d call myself moderate. I care deeply about the environment, but
-          I&rsquo;m convinced the market offers some of our strongest tools for addressing
-          it — if the incentives are actually pointed the right way. That&rsquo;s a big part of
-          why this site frames permitting delay as a structural, bipartisan problem rather than a
-          fight between fuel types: solar, gas, nuclear, and transmission all get stuck in the
-          same bottlenecks, and fixing those bottlenecks is something people across the political
-          spectrum can actually agree on.
+          While I care deeply about environment, I consider myself politically moderate and
+          believe modern markets offer very strong solutions to cost of living issues, energy
+          supply, and environmental degradation.
         </p>
         <p>
           I&rsquo;m an active member of{" "}
