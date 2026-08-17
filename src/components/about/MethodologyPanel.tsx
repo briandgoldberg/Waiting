@@ -323,38 +323,38 @@ export function MethodologyPanel() {
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">
         <h2 className="text-lg font-semibold mb-2">How current is this data?</h2>
         <p className="text-sm mb-3">
-          Every source above runs on an automated daily job (Vercel Cron) — there is no manual,
-          hand-curated data on this site. A daily check doesn&rsquo;t mean each source itself
-          publishes daily; it means this site never lags more than about a day behind whatever the
-          source most recently published:
+          Every source above runs on an automated job (Vercel Cron), checked every 3 days — there
+          is no manual, hand-curated data on this site. A periodic check doesn&rsquo;t mean each
+          source itself publishes that often; it means this site never lags more than about 3
+          days behind whatever the source most recently published:
         </p>
         <ul className="text-sm flex flex-col gap-2">
           <li>
-            <strong>EIA-860M</strong> — checked daily at 13:00 UTC. EIA itself republishes the
-            &ldquo;Planned&rdquo; workbook monthly, with roughly a two-month publication lag on
-            EIA&rsquo;s end; most daily checks simply find the same file already ingested and
-            no-op.
+            <strong>EIA-860M</strong> — checked every 3 days at 13:00 UTC. EIA itself republishes
+            the &ldquo;Planned&rdquo; workbook monthly, with roughly a two-month publication lag on
+            EIA&rsquo;s end; most checks simply find the same file already ingested and no-op.
           </li>
           <li>
-            <strong>Federal Permitting Dashboard</strong> — checked daily at 14:00 UTC against a
-            live queryable API, not a periodic file, so this is the closest of the five to
-            real-time: whatever the Permitting Council&rsquo;s data reflects is picked up within a
-            day.
+            <strong>Federal Permitting Dashboard</strong> — checked every 3 days at 14:00 UTC
+            against a live queryable API, not a periodic file, so this is the closest of the five
+            to real-time: whatever the Permitting Council&rsquo;s data reflects is picked up
+            within a few days.
           </li>
           <li>
-            <strong>LBNL Queued Up</strong> — checked daily at 15:00 UTC. LBNL republishes this
-            dataset only about once a year; daily checking costs one cheap page fetch on the days
-            nothing&rsquo;s changed and guarantees a new edition is picked up within 24 hours of
-            release rather than waiting on a manual download.
+            <strong>LBNL Queued Up</strong> — checked every 3 days at 15:00 UTC. LBNL republishes
+            this dataset only about once a year; a periodic check costs one cheap page fetch on
+            the days nothing&rsquo;s changed and still guarantees a new edition is picked up
+            quickly after release rather than waiting on a manual download.
           </li>
           <li>
-            <strong>ORNL HydroSource hydropower relicensing</strong> — checked daily at 16:00 UTC,
-            same rationale as LBNL Queued Up: ORNL republishes this dataset about once a year too.
+            <strong>ORNL HydroSource hydropower relicensing</strong> — checked every 3 days at
+            16:00 UTC, same rationale as LBNL Queued Up: ORNL republishes this dataset about once
+            a year too.
           </li>
           <li>
-            <strong>EIA Natural Gas Pipeline Projects tracker</strong> — checked daily at 17:00
-            UTC. EIA republishes this one roughly quarterly; same rationale as the two annual
-            sources above.
+            <strong>EIA Natural Gas Pipeline Projects tracker</strong> — checked every 3 days at
+            17:00 UTC. EIA republishes this one roughly quarterly; same rationale as the two
+            annual sources above.
           </li>
         </ul>
         <p className="text-sm mt-3">

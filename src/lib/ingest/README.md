@@ -9,20 +9,20 @@ sources that can be re-run and stay current on their own).
 
 | Module | Source | Live API? | Auth needed | Scheduled? |
 |---|---|---|---|---|
-| `eia860mPlanned.ts` | EIA-860M "Planned" generator inventory | Yes — monthly Excel workbook, auto-discovered | Free API key not required for this module (see `eia.ts` below for the one that does) | Daily cron (13:00 UTC), `/api/cron/ingest-eia` |
-| `permittingDashboard.ts` | Federal Permitting Dashboard (FAST-41) | Yes — public Socrata endpoint | None found needed | Daily cron (14:00 UTC), `/api/cron/ingest-permitting-dashboard` |
-| `lbnlQueuedUp.ts` | LBNL Queued Up | Yes — annual Excel workbook, scraped off the landing page | None (no auth, just a browser-like User-Agent — see file header) | Daily cron (15:00 UTC), `/api/cron/ingest-lbnl`, even though LBNL itself only republishes ~annually — see file header for why a daily check still makes sense |
-| `ornlHydropowerRelicensing.ts` | ORNL HydroSource hydropower relicensing/license-surrender dataset | Yes — annual Excel workbook, edition-year page auto-discovered then scraped, same two-step pattern as LBNL | None (no auth, just a browser-like User-Agent) | Daily cron (16:00 UTC), `/api/cron/ingest-ornl-hydro`, same "cheap daily check of an annual source" rationale as LBNL |
-| `eiaPipelineProjects.ts` | EIA "Natural Gas Pipeline Projects" tracker | Yes — quarterly Excel workbook, scraped off the landing page (naming convention itself isn't consistent — see file header) | None (no auth) | Daily cron (17:00 UTC), `/api/cron/ingest-eia-pipelines` |
+| `eia860mPlanned.ts` | EIA-860M "Planned" generator inventory | Yes — monthly Excel workbook, auto-discovered | Free API key not required for this module (see `eia.ts` below for the one that does) | Cron every 3 days (13:00 UTC), `/api/cron/ingest-eia` |
+| `permittingDashboard.ts` | Federal Permitting Dashboard (FAST-41) | Yes — public Socrata endpoint | None found needed | Cron every 3 days (14:00 UTC), `/api/cron/ingest-permitting-dashboard` |
+| `lbnlQueuedUp.ts` | LBNL Queued Up | Yes — annual Excel workbook, scraped off the landing page | None (no auth, just a browser-like User-Agent — see file header) | Cron every 3 days (15:00 UTC), `/api/cron/ingest-lbnl`, even though LBNL itself only republishes ~annually — see file header for why checking this often still makes sense |
+| `ornlHydropowerRelicensing.ts` | ORNL HydroSource hydropower relicensing/license-surrender dataset | Yes — annual Excel workbook, edition-year page auto-discovered then scraped, same two-step pattern as LBNL | None (no auth, just a browser-like User-Agent) | Cron every 3 days (16:00 UTC), `/api/cron/ingest-ornl-hydro`, same "cheap periodic check of an annual source" rationale as LBNL |
+| `eiaPipelineProjects.ts` | EIA "Natural Gas Pipeline Projects" tracker | Yes — quarterly Excel workbook, scraped off the landing page (naming convention itself isn't consistent — see file header) | None (no auth) | Cron every 3 days (17:00 UTC), `/api/cron/ingest-eia-pipelines` |
 | `eia.ts` | EIA API v2 `operating-generator-capacity` | Yes | Free API key | **Superseded, do not run** — see file header. This route only covers already-operating plants; `eia860mPlanned.ts` replaced it. |
 
 All five scheduled sources run via Vercel Cron (see `vercel.json`) with no
-manual step required — "daily" bounds this site's staleness to ~24h behind
-whatever each source most recently published, it doesn't mean the source
-itself changes that often (EIA-860M republishes monthly, the EIA pipeline
-tracker ~quarterly, LBNL and ORNL annually; only the Permitting Dashboard's
-live API is closer to real-time). Every ingestion run upserts by a stable
-per-source ID, so re-running a source updates existing projects in place
+manual step required — checking every 3 days bounds this site's staleness
+to ~3 days behind whatever each source most recently published, it doesn't
+mean the source itself changes that often (EIA-860M republishes monthly, the
+EIA pipeline tracker ~quarterly, LBNL and ORNL annually; only the Permitting
+Dashboard's live API is closer to real-time). Every ingestion run upserts by
+a stable per-source ID, so re-running a source updates existing projects in place
 rather than duplicating them.
 
 Run a module directly with `npx tsx src/lib/ingest/<module>.ts` (or the
