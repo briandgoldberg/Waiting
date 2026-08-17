@@ -55,14 +55,14 @@ export function ContactPanel() {
       <div>
         <h2 className="text-2xl font-bold tracking-tight">I Want Your Feedback</h2>
         <p className="text-sm text-[var(--muted)] mt-1">
-          Found a bug, have an enhancement idea, or want to partner with us — reach out for any
-          reason.
+          Found a bug, have an enhancement idea, or want to partner with us? We want to hear from
+          you!
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5 flex flex-col gap-4">
         <fieldset>
-          <legend className="text-sm font-medium mb-2">What&rsquo;s this about?</legend>
+          <legend className="text-sm font-medium mb-2">Why are you reaching out?</legend>
           <div className="flex flex-col gap-2">
             {TOPICS.map((t) => (
               <label key={t.value} className="flex items-center gap-2 text-sm cursor-pointer">
