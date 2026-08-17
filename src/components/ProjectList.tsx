@@ -125,7 +125,9 @@ export function ProjectList({ projects }: { projects: ProjectDTO[] }) {
               {columns.map((c) => (
                 <th
                   key={c.key}
-                  className="px-4 py-2 cursor-pointer select-none whitespace-nowrap"
+                  className={`px-3 py-2 cursor-pointer select-none whitespace-nowrap ${
+                    c.key === "source" ? "hidden md:table-cell" : ""
+                  }`}
                   onClick={() => sortBy(c.key)}
                 >
                   {c.label} {sortKey === c.key && (sortDir === "asc" ? "↑" : "↓")}
@@ -136,7 +138,7 @@ export function ProjectList({ projects }: { projects: ProjectDTO[] }) {
           <tbody>
             {sorted.map((p) => (
               <tr key={p.id} className="border-b border-[var(--border)] last:border-b-0 hover:bg-black/[0.02] dark:hover:bg-white/[0.03]">
-                <td className="px-4 py-2.5">
+                <td className="px-3 py-2">
                   <Link href={`/project/${p.slug}`} className="font-medium hover:underline">
                     {p.name}
                   </Link>
@@ -144,7 +146,7 @@ export function ProjectList({ projects }: { projects: ProjectDTO[] }) {
                     <span className="ml-2 text-[10px] text-[var(--muted)]">(aggregate)</span>
                   )}
                 </td>
-                <td className="px-4 py-2.5 whitespace-nowrap">
+                <td className="px-3 py-2 whitespace-nowrap">
                   <span className="inline-flex items-center gap-1.5">
                     <span
                       className="inline-block h-2 w-2 rounded-full"
@@ -153,17 +155,19 @@ export function ProjectList({ projects }: { projects: ProjectDTO[] }) {
                     {FUEL_TYPE_BY_VALUE[p.fuelType]?.label ?? p.fuelType}
                   </span>
                 </td>
-                <td className="px-4 py-2.5 whitespace-nowrap">{p.state ?? "—"}</td>
-                <td className="px-4 py-2.5 whitespace-nowrap tabular-nums">
+                <td className="px-3 py-2 whitespace-nowrap">{p.state ?? "—"}</td>
+                <td className="px-3 py-2 whitespace-nowrap tabular-nums">
                   {p.yearsWaiting != null ? `${p.yearsWaiting.toFixed(1)} yrs` : "—"}
                 </td>
-                <td className="px-4 py-2.5 whitespace-nowrap tabular-nums">
+                <td className="px-3 py-2 whitespace-nowrap tabular-nums">
                   {formatCapacity(p.capacityValue, p.capacityUnit)}
                 </td>
-                <td className="px-4 py-2.5 whitespace-nowrap">
+                <td className="px-3 py-2 whitespace-nowrap">
                   {PROJECT_STAGE_BY_VALUE[p.currentStage] ?? p.currentStage.replace(/_/g, " ")}
                 </td>
-                <td className="px-4 py-2.5 whitespace-nowrap text-[var(--muted)]">{sourceLabel(p)}</td>
+                <td className="px-3 py-2 whitespace-nowrap text-[var(--muted)] hidden md:table-cell">
+                  {sourceLabel(p)}
+                </td>
               </tr>
             ))}
           </tbody>
