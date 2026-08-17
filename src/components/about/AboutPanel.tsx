@@ -37,8 +37,8 @@ export function AboutPanel() {
         </p>
         <p>
           While I care deeply about environment, I consider myself politically moderate and
-          believe modern markets offer very strong solutions to cost of living issues, energy
-          supply, and environmental degradation.
+          believe modern markets, when incentived properly, offer strong solutions to cost of
+          living issues, energy supply, and environmental degradation.
         </p>
         <p>
           I&rsquo;m an active member of{" "}
