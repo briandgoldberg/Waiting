@@ -6,7 +6,7 @@ import type { ProjectDTO } from "@/lib/types";
 import { FUEL_TYPE_BY_VALUE, formatCapacity, PROJECT_STAGE_BY_VALUE } from "@/lib/data/taxonomies";
 import { SOURCE_OPTIONS, sourceKeyForProject } from "@/lib/filters";
 
-type SortKey = "name" | "fuel" | "location" | "daysWaiting" | "capacity" | "stage" | "source";
+type SortKey = "name" | "fuel" | "location" | "daysWaiting" | "capacity" | "stage";
 type SortDir = "asc" | "desc";
 
 function sourceLabel(p: ProjectDTO): string {
@@ -90,9 +90,6 @@ export function ProjectList({ projects }: { projects: ProjectDTO[] }) {
       case "stage":
         cmp = a.currentStage.localeCompare(b.currentStage);
         break;
-      case "source":
-        cmp = sourceLabel(a).localeCompare(sourceLabel(b));
-        break;
     }
     return sortDir === "asc" ? cmp : -cmp;
   });
@@ -104,7 +101,6 @@ export function ProjectList({ projects }: { projects: ProjectDTO[] }) {
     { key: "daysWaiting", label: "Waiting" },
     { key: "capacity", label: "Capacity" },
     { key: "stage", label: "Stage" },
-    { key: "source", label: "Source" },
   ];
 
   return (
@@ -125,9 +121,7 @@ export function ProjectList({ projects }: { projects: ProjectDTO[] }) {
               {columns.map((c) => (
                 <th
                   key={c.key}
-                  className={`px-3 py-2 cursor-pointer select-none whitespace-nowrap ${
-                    c.key === "source" ? "hidden md:table-cell" : ""
-                  }`}
+                  className="px-3 py-2 cursor-pointer select-none whitespace-nowrap"
                   onClick={() => sortBy(c.key)}
                 >
                   {c.label} {sortKey === c.key && (sortDir === "asc" ? "↑" : "↓")}
@@ -164,9 +158,6 @@ export function ProjectList({ projects }: { projects: ProjectDTO[] }) {
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   {PROJECT_STAGE_BY_VALUE[p.currentStage] ?? p.currentStage.replace(/_/g, " ")}
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap text-[var(--muted)] hidden md:table-cell">
-                  {sourceLabel(p)}
                 </td>
               </tr>
             ))}
