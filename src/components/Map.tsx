@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import maplibregl, { type Map as MaplibreMap } from "maplibre-gl";
 import type { ProjectDTO } from "@/lib/types";
 import { formatCapacity, FUEL_TYPE_BY_VALUE } from "@/lib/data/taxonomies";
+import { multiStateCentroid } from "@/lib/data/usStates";
 
 // Free, no-API-key vector basemap (CARTO's Positron style — light and
 // minimal, so the colored fuel-type markers read clearly against it instead
@@ -41,7 +42,7 @@ function capacityRadius(p: ProjectDTO): number {
   return 4;
 }
 
-function popupHtml(p: ProjectDTO): string {
+function popupHtml(p: ProjectDTO, approx: boolean): string {
   const capacityLabel = formatCapacity(p.capacityValue, p.capacityUnit);
   return `
     <div style="min-width:220px;font-family:inherit;">
@@ -50,6 +51,7 @@ function popupHtml(p: ProjectDTO): string {
         <div style="font-size:12px;color:var(--muted);margin-top:2px;">
           ${p.state ?? ""} · ${capacityLabel}${p.isAggregateExample ? " · aggregate" : ""}
         </div>
+        ${approx ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">Approximate location — this project spans multiple states; pin is centered between them.</div>` : ""}
       </div>
       <div style="padding:10px 14px;font-size:12px;">
         <div><strong>Waiting:</strong> ${p.yearsWaiting != null ? p.yearsWaiting.toFixed(1) + " yrs" : "—"}</div>
@@ -105,7 +107,16 @@ export function Map({ projects }: { projects: ProjectDTO[] }) {
       markersRef.current = [];
 
       for (const p of projectsRef.current) {
-        if (p.lat == null || p.lon == null) continue;
+        let lon = p.lon;
+        let lat = p.lat;
+        let approx = false;
+
+        if (lon == null || lat == null) {
+          const centroid = multiStateCentroid(p.state);
+          if (!centroid) continue;
+          [lon, lat] = centroid;
+          approx = true;
+        }
 
         const size = capacityRadius(p) * 2;
         const color = FUEL_TYPE_BY_VALUE[p.fuelType]?.color ?? "#6b7280";
@@ -113,20 +124,21 @@ export function Map({ projects }: { projects: ProjectDTO[] }) {
         el.style.cssText = `
           width:${size}px;height:${size}px;border-radius:50%;
           background:${color};opacity:0.9;
-          border:1.5px solid #ffffff;box-shadow:0 1px 3px rgba(0,0,0,0.4);
+          border:1.5px ${approx ? "dashed" : "solid"} #ffffff;box-shadow:0 1px 3px rgba(0,0,0,0.4);
           cursor:pointer;
         `;
+        const lonLat: [number, number] = [lon, lat];
         el.addEventListener("click", (e) => {
           e.stopPropagation();
           popupRef.current?.remove();
           popupRef.current = new maplibregl.Popup({ closeButton: true, maxWidth: "260px" })
-            .setLngLat([p.lon as number, p.lat as number])
-            .setHTML(popupHtml(p))
+            .setLngLat(lonLat)
+            .setHTML(popupHtml(p, approx))
             .addTo(map);
         });
 
         const marker = new maplibregl.Marker({ element: el })
-          .setLngLat([p.lon, p.lat])
+          .setLngLat(lonLat)
           .addTo(map);
         markersRef.current.push(marker);
       }
