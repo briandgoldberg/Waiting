@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { serializeProject } from "@/lib/serialize";
-import { matchesFilters, DEFAULT_FILTERS, type FilterState } from "@/lib/filters";
+import { queryProjects, toFilterState } from "@/lib/queryProjects";
 
 // Public, read-only, no key required — CORS is wide open on purpose so
 // external tools/agents can call this directly from the browser or a server.
+// For agent use via a tool call (rather than a raw HTTP fetch), see the MCP
+// server at /mcp — it wraps this same query logic with response sizes
+// bounded for a model's context window.
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -35,22 +36,16 @@ function parseNumber(value: string | null): number | null {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
 
-  const filters: FilterState = {
-    ...DEFAULT_FILTERS,
-    state: searchParams.get("state") || null,
-    fuelTypes: parseList(searchParams.get("fuelType")) as FilterState["fuelTypes"],
-    projectTypes: parseList(searchParams.get("projectType")) as FilterState["projectTypes"],
-    stages: parseList(searchParams.get("stage")) as FilterState["stages"],
+  const filters = toFilterState({
+    state: searchParams.get("state"),
+    fuelType: parseList(searchParams.get("fuelType")),
+    projectType: parseList(searchParams.get("projectType")),
+    stage: parseList(searchParams.get("stage")),
     minYearsWaiting: parseNumber(searchParams.get("minYearsWaiting")),
     minCapacity: parseNumber(searchParams.get("minCapacity")),
-  };
-
-  const projects = await prisma.project.findMany({
-    include: { causes: true, sources: true, milestones: true },
-    orderBy: { createdAt: "asc" },
   });
 
-  const filtered = projects.map(serializeProject).filter((p) => matchesFilters(p, filters));
+  const filtered = await queryProjects(filters);
 
   return NextResponse.json(filtered, { headers: CORS_HEADERS });
 }
