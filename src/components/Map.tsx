@@ -82,10 +82,32 @@ export function Map({ projects }: { projects: ProjectDTO[] }) {
       minZoom: 2.5,
       maxZoom: 14,
       maxBounds: US_MAX_BOUNDS,
+      attributionControl: false,
     });
     mapRef.current = map;
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    // Required CARTO/OpenStreetMap attribution (see MAP_STYLE comment above)
+    // — collapsed to a small icon instead of a full text bar across the
+    // bottom of the map. Hardcoded rather than left to MapLibre's automatic
+    // per-source collection: confirmed that path silently produces no real
+    // attribution here (only a generic "MapLibre" credit), so leaving it
+    // automatic would drop the CARTO/OSM credit those free tiles require.
+    map.addControl(
+      new maplibregl.AttributionControl({
+        compact: true,
+        customAttribution:
+          '&copy; <a href="https://carto.com/about-carto/" target="_blank" rel="noopener">CARTO</a>, &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
+      }),
+      "bottom-right",
+    );
+    // MapLibre renders the compact attribution expanded (full text) the
+    // moment it *becomes* compact, and only collapses to the small "i" icon
+    // after the user drags the map — collapse it immediately instead so it
+    // never shows as a text bar across the bottom on first load.
+    const attribEl = containerRef.current?.querySelector(".maplibregl-ctrl-attrib");
+    attribEl?.classList.remove("maplibregl-compact-show");
+    attribEl?.removeAttribute("open");
 
     return () => {
       map.remove();
