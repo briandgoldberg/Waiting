@@ -1,0 +1,38 @@
+# WaitingForPower
+
+> Live, sourced dataset of U.S. energy projects — generation, transmission, storage,
+> LNG, and pipelines, every fuel type — currently stuck waiting on permitting approval,
+> merged from five public federal/state sources and refreshed automatically every
+> ~3 days. Structural and bipartisan: solar, gas, nuclear, and transmission projects
+> all get stuck in the same handful of bottlenecks.
+
+## API
+
+- [GET /api/projects](https://waitingforpower.com/api/projects): the full dataset as JSON, one object per project. No key required.
+  Optional query params (combine with AND):
+  - `state` — USPS code, e.g. `state=CA`
+  - `fuelType` — comma-separated, e.g. `fuelType=solar,wind_onshore`
+  - `projectType` — comma-separated, e.g. `projectType=generation,storage`
+  - `stage` — comma-separated `currentStage` values, e.g. `stage=agency_permitting`
+  - `minYearsWaiting` — number, e.g. `minYearsWaiting=3`
+  - `minCapacity` — number in MW, e.g. `minCapacity=500`
+
+  Example: `https://waitingforpower.com/api/projects?state=TX&fuelType=solar&minYearsWaiting=1`
+
+  Each object includes: project identity (`name`, `slug`, `projectType`, `fuelType`),
+  location (`lat`, `lon`, `state`, `county`), `capacityValue`/`capacityUnit`,
+  `currentStage`, why it's stuck (`causeSlugs`, `causeDetail`), `sources` (label + URL
+  per citation), a `milestones` timeline, and computed fields (`daysWaiting`,
+  `yearsWaiting`, `investmentWaiting`).
+
+## Docs
+
+- [Methodology](https://waitingforpower.com/methodology) — how each field is computed, per-source detail, and known data-quality caveats.
+- [Policies](https://waitingforpower.com/policies) — six bipartisan permitting-reform proposals this data supports, one per structural bottleneck.
+- [Source](https://github.com/briandgoldberg/WaitingForPower) — the ingestion pipeline and full schema, MIT licensed.
+
+## Use and citation
+
+Free to use, cite, and build on with attribution to WaitingForPower
+(waitingforpower.com). If you build something on top of the API or want to
+partner, contact details are on the [About](https://waitingforpower.com/about) page.
