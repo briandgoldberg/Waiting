@@ -1,6 +1,7 @@
 import type { ProjectDTO } from "@/lib/types";
 import type { FuelType, ProjectStage, ProjectType } from "@/lib/data/taxonomies";
 import { PROJECT_STAGE_BY_VALUE } from "@/lib/data/taxonomies";
+import { splitStateCodes, stateName } from "@/lib/data/usStates";
 
 // Not a stored field — this site doesn't have one canonical "source" column
 // per project (a project's `sources` array is label+url pairs meant for
@@ -41,6 +42,7 @@ export interface FilterState {
   minCapacity: number | null; // e.g. 250, 500, 1000 MW quick presets, or null = no minimum
   stages: ProjectStage[];
   sourceKeys: SourceKey[];
+  state: string | null; // USPS code, e.g. "CA", or null = all states
 }
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -50,6 +52,7 @@ export const DEFAULT_FILTERS: FilterState = {
   minCapacity: null,
   stages: [],
   sourceKeys: [],
+  state: null,
 };
 
 export function hasActiveFilters(f: FilterState): boolean {
@@ -59,7 +62,8 @@ export function hasActiveFilters(f: FilterState): boolean {
     f.projectTypes.length > 0 ||
     f.minCapacity != null ||
     f.stages.length > 0 ||
-    f.sourceKeys.length > 0
+    f.sourceKeys.length > 0 ||
+    f.state != null
   );
 }
 
@@ -72,6 +76,7 @@ export function matchesFilters(p: ProjectDTO, f: FilterState): boolean {
   if (f.minCapacity != null && (p.capacityValue == null || p.capacityValue < f.minCapacity)) return false;
   if (f.stages.length > 0 && !f.stages.includes(p.currentStage)) return false;
   if (f.sourceKeys.length > 0 && !f.sourceKeys.includes(sourceKeyForProject(p))) return false;
+  if (f.state != null && !splitStateCodes(p.state).includes(f.state)) return false;
   return true;
 }
 
@@ -123,6 +128,13 @@ export function buildChips(f: FilterState): FilterChip[] {
       key: `source-${sk}`,
       label: SOURCE_OPTIONS.find((o) => o.value === sk)?.label ?? sk,
       onRemove: (state) => ({ ...state, sourceKeys: state.sourceKeys.filter((x) => x !== sk) }),
+    });
+  }
+  if (f.state != null) {
+    chips.push({
+      key: "state",
+      label: stateName(f.state),
+      onRemove: (state) => ({ ...state, state: null }),
     });
   }
   return chips;

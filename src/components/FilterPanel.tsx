@@ -1,9 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import { FUEL_TYPES, PROJECT_TYPES, TRACKED_PROJECT_STAGES } from "@/lib/data/taxonomies";
 import { SOURCE_OPTIONS } from "@/lib/filters";
 import type { FilterState, SourceKey } from "@/lib/filters";
 import type { FuelType, ProjectStage, ProjectType } from "@/lib/data/taxonomies";
+import { splitStateCodes, stateName } from "@/lib/data/usStates";
+import type { ProjectDTO } from "@/lib/types";
 
 function toggle<T>(arr: T[], value: T): T[] {
   return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
@@ -55,12 +58,39 @@ function Pill({
 export function FilterPanel({
   filters,
   onChange,
+  projects,
 }: {
   filters: FilterState;
   onChange: (f: FilterState) => void;
+  projects: ProjectDTO[];
 }) {
+  const stateOptions = useMemo(() => {
+    const codes = new Set<string>();
+    for (const p of projects) {
+      for (const code of splitStateCodes(p.state)) codes.add(code);
+    }
+    return Array.from(codes)
+      .map((code) => ({ value: code, label: stateName(code) }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [projects]);
+
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
+      <Section title="State">
+        <select
+          value={filters.state ?? ""}
+          onChange={(e) => onChange({ ...filters, state: e.target.value || null })}
+          className="w-full rounded-md border border-[var(--border)] bg-[var(--panel)] px-2.5 py-1.5 text-sm"
+        >
+          <option value="">All states</option>
+          {stateOptions.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+      </Section>
+
       <Section title="Length of delay">
         <div className="flex flex-wrap gap-1.5">
           {[1, 3, 5].map((n) => (
