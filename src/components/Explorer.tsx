@@ -46,7 +46,7 @@ export function Explorer({ projects }: { projects: ProjectDTO[] }) {
           America needs power. It&rsquo;s stuck waiting.
         </h1>
         <p className="text-sm text-[var(--muted)] mt-1 max-w-3xl">
-          Cheaper bills. Cleaner air. Power for AI. Entrepreneurs are ready to build it — every
+          Cheaper bills. Cleaner air. Power for businesses and consumers. Entrepreneurs are ready to build it — every
           fuel type, every technology. Below are all the projects just waiting on a yes.
         </p>
       </div>
