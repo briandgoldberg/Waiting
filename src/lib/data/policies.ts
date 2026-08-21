@@ -31,6 +31,8 @@ export interface Policy {
   title: string;
   /** Short tagline, e.g. for nav/index chips. */
   oneLiner: string;
+  /** Overrides the cause's shortLabel for the /policies nav chip + badge — use when the neutral cause name (e.g. "Local opposition") reads wrong as the name of the policy ask itself. */
+  badgeLabel?: string;
   /** The problem + the fix, in one tight paragraph. */
   summary: string;
   strengths: string[];
@@ -163,6 +165,7 @@ export const POLICIES: Policy[] = [
     slug: "local_state_opposition",
     title: "Earlier community engagement",
     oneLiner: "Talk to communities before the fight, not after.",
+    badgeLabel: "Local engagement",
     summary:
       "Local opposition usually shows up only after the site and design are already locked in — by then it's an all-or-nothing fight instead of a negotiation. The fix: real engagement and binding community benefit agreements early, before decisions are set in stone.",
     strengths: [

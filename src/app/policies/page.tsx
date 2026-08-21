@@ -31,7 +31,7 @@ export default function PoliciesPage() {
                 className="inline-block h-2 w-2 rounded-full mr-1.5 align-middle"
                 style={{ backgroundColor: cause.color }}
               />
-              {cause.shortLabel}
+              {policy.badgeLabel ?? cause.shortLabel}
             </a>
           );
         })}
@@ -54,7 +54,7 @@ export default function PoliciesPage() {
                     className="inline-block text-xs font-medium uppercase tracking-wide rounded-full px-2.5 py-1 text-white mb-1.5"
                     style={{ backgroundColor: cause.color }}
                   >
-                    {cause.shortLabel}
+                    {policy.badgeLabel ?? cause.shortLabel}
                   </span>
                   <h2 className="text-xl font-bold tracking-tight">{policy.title}</h2>
                   <p className="text-sm text-[var(--muted)]">{policy.oneLiner}</p>
