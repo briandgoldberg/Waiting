@@ -5,9 +5,9 @@ export default function PoliciesPage() {
   return (
     <div className="mx-auto max-w-3xl w-full px-4 sm:px-6 py-6 flex flex-col gap-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Policies to support</h1>
+        <h1 className="text-3xl font-bold tracking-tight">What we&rsquo;re advocating for</h1>
         <p className="text-sm text-[var(--muted)] mt-2 max-w-2xl">
-          Six bipartisan fixes, one per bottleneck. No silver bullets — real trade-offs included.
+          Six bipartisan asks, one per bottleneck. No silver bullets — real trade-offs included.
         </p>
         <p className="text-xs text-[var(--muted)] mt-2 max-w-2xl">
           Informed by{" "}

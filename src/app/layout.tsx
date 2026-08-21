@@ -51,7 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 href="/policies"
                 className="px-3 py-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/10"
               >
-                Policies
+                Advocacy
               </Link>
               <Link href="/about" className="px-3 py-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/10">
                 About Us
