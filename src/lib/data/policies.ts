@@ -135,6 +135,11 @@ export const POLICIES: Policy[] = [
     ],
     bills: [
       { ...SPEED_ACT, note: SPEED_ACT.note + " Includes transmission provisions." },
+      {
+        label: "Grid Expansion and Reliability Act (H.R. 8248, 119th Congress)",
+        url: "https://www.congress.gov/bill/119th-congress/house-bill/8248",
+        note: "Introduced by Rep. Gottheimer (D-NJ), April 2026 — shifts NIETC transmission-corridor designation to FERC and allows self-certification for transmission facilities within them.",
+      },
       { label: "Congress.gov: federal transmission siting authority", url: billSearch("federal transmission siting authority") },
     ],
   },
